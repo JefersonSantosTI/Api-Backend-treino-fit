@@ -21,12 +21,24 @@ export const perguntaReceita = async (req, res) => {
             });
         }
 
-        // 2. Adiciona a nova mensagem do usuário ao histórico dele no banco
-        user.historico.push({ role: 'user', content: mensagemAtual });
+       // 2. Garanta que a mensagem atual seja uma string limpa
+const mensagemTexto = String(mensagemAtual).trim();
 
-        // --- CHAMADA PARA A OPENAI ---
-        // 3. Enviamos TODO o histórico recuperado para a IA ter memória
-        const respostaIA = await obterRespostaReceitas(user.historico);
+// Adiciona ao histórico do banco
+user.historico.push({ role: 'user', content: mensagemTexto });
+
+// --- CHAMADA PARA A OPENAI ---
+// 3. Filtre o histórico para garantir que NENHUM item seja nulo ou inválido
+const historicoLimpo = user.historico
+    .filter(msg => msg.content && typeof msg.content === 'string')
+    .map(msg => ({
+        role: msg.role,
+        content: msg.content
+    }));
+
+const respostaIA = await obterRespostaReceitas(historicoLimpo);
+
+// ... (resto do seu código de salvar e responder)
 
         // 4. Adiciona a resposta da IA ao histórico do banco
         user.historico.push({ role: 'assistant', content: respostaIA });
