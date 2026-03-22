@@ -9,32 +9,28 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "WhatsApp e mensagem são obrigatórios" });
         }
 
-        // 1. Busca ou cria usuário
-        let user = await Usuario.findOne({ whatsapp });
-        if (!user) {
-            user = await Usuario.create({ whatsapp, historico: [] });
-        }
+        // --- LÓGICA BLINDADA ---
+// 1. Garante que a mensagem atual é uma string
+const mensagemTexto = String(mensagemAtual || "").trim();
 
-        // 2. Limpeza e preparação do histórico
-        const mensagemTexto = String(mensagemAtual).trim();
-        user.historico.push({ role: 'user', content: mensagemTexto });
+if (!mensagemTexto) {
+    return res.status(400).json({ erro: "Mensagem vazia não é permitida" });
+}
 
-        // Pegar apenas as últimas 10 mensagens para não estourar o limite da OpenAI
-        const historicoParaIA = user.historico
-            .slice(-10)
-            .map(msg => ({
-                role: msg.role === 'assistant' ? 'assistant' : 'user',
-                content: String(msg.content)
-            }));
+// 2. Adiciona ao histórico do objeto local
+user.historico.push({ role: 'user', content: mensagemTexto });
 
-        // 3. Chamada para a OpenAI (Certifique-se que o service está correto)
-        const respostaIA = await obterRespostaReceitas(historicoParaIA);
+// 3. FILTRO CRÍTICO: Remove qualquer mensagem que não tenha 'content' string
+const historicoParaIA = user.historico
+    .filter(msg => msg && typeof msg.content === 'string' && msg.content.trim() !== "")
+    .slice(-10) // Pega as últimas 10
+    .map(msg => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content.trim()
+    }));
 
-        // 4. Salva a resposta e atualiza o banco
-        user.historico.push({ role: 'assistant', content: respostaIA });
-        await user.save();
-
-        res.json({ resposta: respostaIA });
+// 4. Chamada para a OpenAI
+const respostaIA = await obterRespostaReceitas(historicoParaIA);
 
     } catch (err) {
         console.error("ERRO NO CONTROLLER:", err.message);
