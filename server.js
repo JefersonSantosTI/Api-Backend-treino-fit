@@ -7,7 +7,7 @@ import cors from "cors";
 import mongoose from "mongoose";
 // ... restante do código
 
-dotenv.config();
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
