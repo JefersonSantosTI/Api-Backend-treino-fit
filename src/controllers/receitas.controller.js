@@ -54,4 +54,4 @@ export const perguntaReceita = async (req, res) => {
             detalhe: err.message 
         });
     }
-};
+}
