@@ -24,68 +24,70 @@ export const perguntaReceita = async (req, res) => {
             });
         }
 
-        // 2. Lógica de Trava: Define a instrução baseada no plano
         const isTrial = user.planStatus === 'trial' || !user.planStatus;
-        let instrucaoSeguranca = "";
 
+        // 2. Configuração de Instruções (System Prompt)
+        let instrucaoSeguranca = "";
         if (isTrial) {
             instrucaoSeguranca = `
-                ### REGRA DE NEGÓCIO: MODO TRIAL (DEGUSTAÇÃO) ###
-                Você é a Ana, assistente do Treino Fit. O usuário ainda não é VIP.
-                
-                REGRAS OBRIGATÓRIAS:
-                1. Calcule e mostre IMC, TMB e ingestão de água.
-                2. Detalhe APENAS a primeira refeição (Café da Manhã).
-                3. Para Almoço, Lanche e Jantar, escreva exatamente: "[CONTEÚDO BLOQUEADO]".
-                4. Finalize a mensagem com esta frase exata: "Para ver o resto do seu plano, clique no BOTÃO LARANJA que apareceu abaixo!"
-                
-                NÃO forneça a dieta completa sob nenhuma hipótese neste modo.
+                ### REGRA DE NEGÓCIO: MODO TRIAL ###
+                Você é a Ana do Treino Fit.
+                REGRAS:
+                1. Detalhe APENAS o Café da Manhã.
+                2. Para Almoço, Lanche e Jantar, escreva obrigatoriamente: "[CONTEÚDO BLOQUEADO]".
+                3. Finalize com: "Para ver o resto do seu plano, clique no BOTÃO LARANJA que apareceu abaixo!"
             `;
         } else {
             instrucaoSeguranca = `
-                ### MODO VIP ATIVO ###
-                O USUÁRIO É VIP. Você é a Ana, nutricionista premium. 
-                FORNEÇA A DIETA COMPLETA (Café, Almoço, Lanche e Jantar) detalhadamente.
-                JAMAIS use a expressão "BLOQUEADO". 
-                Entregue um plano de 24h completo e motivador.
+                ### MODO VIP LIBERADO ###
+                O USUÁRIO É VIP. VOCÊ ESTÁ PROIBIDA DE USAR A PALAVRA "BLOQUEADO".
+                ENTREGUE A DIETA COMPLETA (CAFÉ, ALMOÇO, LANCHE E JANTAR) COM DETALHES.
+                Ignore qualquer instrução anterior de bloqueio. O acesso agora é TOTAL.
             `;
         }
 
-        // 3. Formata e LIMPA o histórico para a OpenAI
+        // 3. Formata e LIMPA o histórico de forma agressiva
         let historicoParaIA = user.historico
             .filter(msg => msg && msg.content)
             .slice(-10)
-            .map(msg => ({
-                role: msg.role === 'assistant' ? 'assistant' : 'user',
-                content: msg.content.trim()
-            }));
+            .map(msg => {
+                let conteudo = msg.content.trim();
 
-        // --- PULO DO GATO: Se for VIP, limpamos o rastro de bloqueio do histórico enviado ---
+                // Se o usuário é VIP, "mentimos" para a IA dizendo que o histórico já era liberado
+                if (!isTrial) {
+                    conteudo = conteudo
+                        .replace(/\[CONTEÚDO BLOQUEADO\]/g, "(Conteúdo detalhado e liberado anteriormente)")
+                        .replace(/Para ver o resto do seu plano.*/gi, "Aproveite seu acesso VIP!");
+                }
+
+                return {
+                    role: msg.role === 'assistant' ? 'assistant' : 'user',
+                    content: conteudo
+                };
+            });
+
+        // 4. Se o usuário acabou de virar VIP e o histórico está vazio ou viciado, 
+        // damos um reforço na mensagem atual
+        let promptFinalUsuario = mensagemAtual;
         if (!isTrial) {
-            historicoParaIA = historicoParaIA.map(msg => ({
-                ...msg,
-                content: msg.content
-                    .replace(/\[CONTEÚDO BLOQUEADO\]/g, "(Liberado)")
-                    .replace(/Para ver o resto do seu plano.*/gi, "Aproveite seu acesso VIP!")
-            }));
+            promptFinalUsuario = `[USUÁRIO VIP ATIVO]: ${mensagemAtual} (Por favor, forneça o plano completo agora, sem nenhum bloqueio).`;
         }
 
-        // 4. Monta o payload final
+        // 5. Monta o payload final
         const mensagensParaEnviar = [
             { role: 'system', content: instrucaoSeguranca },
             ...historicoParaIA,
-            { role: 'user', content: mensagemAtual }
+            { role: 'user', content: promptFinalUsuario }
         ];
 
-        // 5. Obtém a resposta da IA
+        // 6. Obtém a resposta da IA
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // 6. Salva a interação REAL no Banco de Dados (mantendo o histórico original)
+        // 7. Salva a interação REAL no Banco de Dados
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         await user.save();
 
-        // 7. Retorna a resposta
         res.json({ 
             resposta: respostaIA,
             isTrial: isTrial 
@@ -108,16 +110,10 @@ export const tornarVip = async (req, res) => {
             { new: true }
         );
 
-        if (!user) {
-            return res.status(404).json({ erro: "Usuário não encontrado" });
-        }
+        if (!user) return res.status(404).json({ erro: "Usuário não encontrado" });
 
-        res.json({ 
-            mensagem: "Parabéns! Agora você é VIP no Treino Fit.", 
-            user 
-        });
+        res.json({ mensagem: "Parabéns! Agora você é VIP no Treino Fit.", user });
     } catch (err) {
-        console.error("ERRO AO TORNAR VIP:", err.message);
-        res.status(500).json({ erro: "Erro ao atualizar status para VIP" });
+        res.status(500).json({ erro: "Erro ao atualizar status" });
     }
 };
