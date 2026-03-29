@@ -1,12 +1,22 @@
-import express from 'express'
-import { perguntaReceita } from '../controllers/receitas.controller.js'
+import express from 'express';
+// Importe a nova função obterHistorico aqui!
+import { perguntaReceita, tornarVip, obterHistorico } from '../controllers/receitas.controller.js';
 
-const router = express.Router()
+const router = express.Router();
 
+// Rota padrão para teste
 router.get("/", (req, res) => {
-  res.json({ status: "Rota receitas ativa 🚀" })
-})
+  res.json({ status: "Rota receitas ativa 🚀" });
+});
 
-router.post('/perguntar', perguntaReceita)
+// --- ESTA É A LINHA QUE RESOLVE O ERRO 404 DO F12 ---
+// Ela diz: "Quando pedirem o histórico do whatsapp X, use a função obterHistorico"
+router.get('/historico/:whatsapp', obterHistorico);
 
-export default router
+// Rota para fazer a pergunta para a IA
+router.post('/perguntar', perguntaReceita);
+
+// Rota para mudar o status do usuário para VIP
+router.post('/tornar-vip', tornarVip);
+
+export default router;

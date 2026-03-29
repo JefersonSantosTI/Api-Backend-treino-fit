@@ -1,6 +1,38 @@
 import obterRespostaReceitas from '../services/openai.service.js';
 import Usuario from './Usuario.js';
 
+// --- NOVO: FUNÇÃO PARA BUSCAR HISTÓRICO (Resolve o erro 404) ---
+export const obterHistorico = async (req, res) => {
+    try {
+        const { whatsapp } = req.params;
+        const user = await Usuario.findOne({ whatsapp: String(whatsapp).trim() });
+
+        if (!user) {
+            return res.json([]); // Retorna lista vazia se não achar o usuário
+        }
+
+        const isVip = user.planStatus === 'vip';
+
+        // Mapeia o histórico e limpa textos de bloqueio se o usuário já for VIP
+        const historicoLimpo = user.historico.map(msg => {
+            let texto = msg.content || "";
+            if (isVip) {
+                texto = texto.replace(/\[CONTEÚDO BLOQUEADO\]/g, "✅ (Liberado)");
+                texto = texto.replace(/Para ver o resto do seu plano, clique no BOTÃO LARANJA.*/gi, "Aproveite seu acesso VIP! 💪");
+            }
+            return {
+                role: msg.role,
+                content: texto
+            };
+        });
+
+        res.json(historicoLimpo);
+    } catch (err) {
+        console.error("ERRO AO BUSCAR HISTÓRICO:", err.message);
+        res.status(500).json({ erro: "Erro ao buscar histórico" });
+    }
+};
+
 // --- FUNÇÃO DE PERGUNTA ATUALIZADA ---
 export const perguntaReceita = async (req, res) => {
     try {
@@ -13,7 +45,6 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "WhatsApp e mensagem são obrigatórios" });
         }
 
-        // 1. Busca ou cria o usuário
         let user = await Usuario.findOne({ whatsapp });
         
         if (!user) {
@@ -26,7 +57,6 @@ export const perguntaReceita = async (req, res) => {
 
         const isTrial = user.planStatus === 'trial' || !user.planStatus;
 
-        // 2. Configuração de Instruções (System Prompt)
         let instrucaoSeguranca = "";
         if (isTrial) {
             instrucaoSeguranca = `
@@ -46,44 +76,35 @@ export const perguntaReceita = async (req, res) => {
             `;
         }
 
-        // 3. Formata e LIMPA o histórico de forma agressiva
         let historicoParaIA = user.historico
             .filter(msg => msg && msg.content)
             .slice(-10)
             .map(msg => {
                 let conteudo = msg.content.trim();
-
-                // Se o usuário é VIP, "mentimos" para a IA dizendo que o histórico já era liberado
                 if (!isTrial) {
                     conteudo = conteudo
                         .replace(/\[CONTEÚDO BLOQUEADO\]/g, "(Conteúdo detalhado e liberado anteriormente)")
                         .replace(/Para ver o resto do seu plano.*/gi, "Aproveite seu acesso VIP!");
                 }
-
                 return {
                     role: msg.role === 'assistant' ? 'assistant' : 'user',
                     content: conteudo
                 };
             });
 
-        // 4. Se o usuário acabou de virar VIP e o histórico está vazio ou viciado, 
-        // damos um reforço na mensagem atual
         let promptFinalUsuario = mensagemAtual;
         if (!isTrial) {
             promptFinalUsuario = `[USUÁRIO VIP ATIVO]: ${mensagemAtual} (Por favor, forneça o plano completo agora, sem nenhum bloqueio).`;
         }
 
-        // 5. Monta o payload final
         const mensagensParaEnviar = [
             { role: 'system', content: instrucaoSeguranca },
             ...historicoParaIA,
             { role: 'user', content: promptFinalUsuario }
         ];
 
-        // 6. Obtém a resposta da IA
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // 7. Salva a interação REAL no Banco de Dados
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         await user.save();
