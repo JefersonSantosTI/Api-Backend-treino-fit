@@ -19,30 +19,31 @@ export const perguntaReceita = async (req, res) => {
         let user = await Usuario.findOne({ whatsapp });
         
         if (!user) {
-            // Criamos como 'trial' por padrão para novos usuários
             user = await Usuario.create({ 
                 whatsapp, 
                 historico: [], 
-                planStatus: 'trial' // Certifique-se de ter esse campo no seu Schema do MongoDB
+                planStatus: 'trial' 
             });
         }
 
         // 2. Lógica do Filtro "Primeiro Prato Grátis"
-        let instrucaoSeguranca = "";
         const isTrial = user.planStatus === 'trial' || !user.planStatus;
+        let instrucaoSeguranca = "";
 
         if (isTrial) {
             instrucaoSeguranca = `
                 ### REGRA DE DEGUSTAÇÃO (TRIAL) ###
-                O usuário está em modo de teste gratuito. 
-                1. Calcule e mostre os Macronutrientes Totais (Kcal, Carboidratos, Proteínas e Gorduras).
-                2. Detalhe APENAS a primeira refeição (Café da Manhã).
-                3. Para TODAS as outras refeições (Almoço, Lanches, Jantar), escreva EXATAMENTE: "[CONTEÚDO BLOQUEADO - LIBERE O ACESSO VIP]".
-                4. Finalize dizendo que ele pode liberar o plano completo no botão abaixo.
+                Você é a IA do Treino Fit. O usuário está em modo TRIAL (Gratuito).
+                1. Calcule Macros Totais.
+                2. Detalhe APENAS o Café da Manhã.
+                3. Bloqueie as outras refeições com: "[CONTEÚDO BLOQUEADO - LIBERE O ACESSO VIP]".
+                4. Se o usuário pedir para liberar ou ver o resto, diga que ele deve clicar no botão laranja abaixo.
             `;
+        } else {
+            instrucaoSeguranca = "O usuário é VIP. Forneça a dieta completa e detalhada de todas as refeições.";
         }
 
-        // 3. Prepara o histórico e injeta a regra de segurança no início para a IA obedecer
+        // 3. Prepara o histórico (Últimas 10 mensagens)
         const historicoParaIA = user.historico
             .filter(msg => msg && msg.content)
             .slice(-10)
@@ -51,24 +52,27 @@ export const perguntaReceita = async (req, res) => {
                 content: msg.content.trim()
             }));
 
-        // Adicionamos a instrução de trava como uma mensagem de sistema/contexto
-        historicoParaIA.unshift({
-            role: 'system',
-            content: `Você é a IA do Treino Fit. ${instrucaoSeguranca}`
+        // 4. CORREÇÃO: Adiciona a mensagem ATUAL do usuário ao array que vai para a OpenAI
+        historicoParaIA.push({
+            role: 'user',
+            content: mensagemAtual
         });
 
-        // 4. Adiciona a pergunta atual do usuário ao histórico local (antes de salvar)
-        user.historico.push({ role: 'user', content: mensagemAtual });
+        // 5. Adiciona a instrução de sistema no TOPO
+        historicoParaIA.unshift({
+            role: 'system',
+            content: instrucaoSeguranca
+        });
 
-        // 5. Chama a OpenAI
+        // 6. Chama a OpenAI
         const respostaIA = await obterRespostaReceitas(historicoParaIA);
 
-        // 6. Salva a resposta e o histórico
+        // 7. Salva TUDO no banco de dados (A pergunta e a resposta)
+        user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         await user.save();
 
-        // 7. Responde para o Front-end enviando o status do plano
-        // Assim o Front sabe se deve aplicar o efeito de "Blur" (borrão) ou não
+        // 8. Responde para o Front-end
         res.json({ 
             resposta: respostaIA,
             isTrial: isTrial 
