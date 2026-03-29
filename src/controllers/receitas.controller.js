@@ -29,7 +29,6 @@ export const perguntaReceita = async (req, res) => {
         let instrucaoSeguranca = "";
 
         if (isTrial) {
-            // Instrução específica para forçar a IA a disparar o gatilho do botão laranja
             instrucaoSeguranca = `
                 ### REGRA DE NEGÓCIO: MODO TRIAL (DEGUSTAÇÃO) ###
                 Você é a Ana, assistente do Treino Fit. O usuário ainda não é VIP.
@@ -45,12 +44,15 @@ export const perguntaReceita = async (req, res) => {
         } else {
             instrucaoSeguranca = `
                 ### MODO VIP ATIVO ###
-                O usuário é VIP. Forneça a dieta completa (24h), treinos detalhados e orientações premium sem restrições.
+                O USUÁRIO É VIP. Você é a Ana, nutricionista premium. 
+                FORNEÇA A DIETA COMPLETA (Café, Almoço, Lanche e Jantar) detalhadamente.
+                JAMAIS use a expressão "BLOQUEADO". 
+                Entregue um plano de 24h completo e motivador.
             `;
         }
 
-        // 3. Formata o histórico para a OpenAI (limite de 10 mensagens para economia)
-        const historicoParaIA = user.historico
+        // 3. Formata e LIMPA o histórico para a OpenAI
+        let historicoParaIA = user.historico
             .filter(msg => msg && msg.content)
             .slice(-10)
             .map(msg => ({
@@ -58,7 +60,17 @@ export const perguntaReceita = async (req, res) => {
                 content: msg.content.trim()
             }));
 
-        // 4. Monta o payload final (System + Histórico + Pergunta Atual)
+        // --- PULO DO GATO: Se for VIP, limpamos o rastro de bloqueio do histórico enviado ---
+        if (!isTrial) {
+            historicoParaIA = historicoParaIA.map(msg => ({
+                ...msg,
+                content: msg.content
+                    .replace(/\[CONTEÚDO BLOQUEADO\]/g, "(Liberado)")
+                    .replace(/Para ver o resto do seu plano.*/gi, "Aproveite seu acesso VIP!")
+            }));
+        }
+
+        // 4. Monta o payload final
         const mensagensParaEnviar = [
             { role: 'system', content: instrucaoSeguranca },
             ...historicoParaIA,
@@ -68,12 +80,12 @@ export const perguntaReceita = async (req, res) => {
         // 5. Obtém a resposta da IA
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // 6. Salva a interação no Banco de Dados
+        // 6. Salva a interação REAL no Banco de Dados (mantendo o histórico original)
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         await user.save();
 
-        // 7. Retorna a resposta e o status do plano para o Front-end
+        // 7. Retorna a resposta
         res.json({ 
             resposta: respostaIA,
             isTrial: isTrial 
@@ -81,7 +93,7 @@ export const perguntaReceita = async (req, res) => {
 
     } catch (err) {
         console.error("ERRO NO CONTROLLER PERGUNTA:", err.message);
-        res.status(500).json({ erro: "Erro ao processar sua solicitação de treino/dieta" });
+        res.status(500).json({ erro: "Erro ao processar sua solicitação" });
     }
 };
 
@@ -97,7 +109,7 @@ export const tornarVip = async (req, res) => {
         );
 
         if (!user) {
-            return res.status(404).json({ erro: "Usuário não encontrado para upgrade" });
+            return res.status(404).json({ erro: "Usuário não encontrado" });
         }
 
         res.json({ 
