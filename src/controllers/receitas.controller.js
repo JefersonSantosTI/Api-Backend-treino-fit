@@ -1,7 +1,7 @@
 import obterRespostaReceitas from '../services/openai.service.js';
 import Usuario from './Usuario.js';
 
-// --- FUNÇÃO DE PERGUNTA (EXISTENTE COM AJUSTES) ---
+// --- FUNÇÃO DE PERGUNTA ATUALIZADA ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw } = req.body;
@@ -13,6 +13,7 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "WhatsApp e mensagem são obrigatórios" });
         }
 
+        // 1. Busca ou cria o usuário
         let user = await Usuario.findOne({ whatsapp });
         
         if (!user) {
@@ -23,23 +24,32 @@ export const perguntaReceita = async (req, res) => {
             });
         }
 
-        // Lógica de Trava: Verifica se é VIP ou TRIAL
+        // 2. Lógica de Trava: Define a instrução baseada no plano
         const isTrial = user.planStatus === 'trial' || !user.planStatus;
         let instrucaoSeguranca = "";
 
         if (isTrial) {
+            // Instrução específica para forçar a IA a disparar o gatilho do botão laranja
             instrucaoSeguranca = `
-                ### REGRA DE SEGURANÇA (MODO TRIAL) ###
-                Você é a IA do Treino Fit. O usuário NÃO pagou ainda.
-                1. Calcule os Macros Totais.
-                2. Detalhe APENAS o Café da Manhã.
-                3. OMITA Almoço e Jantar usando: "[CONTEÚDO BLOQUEADO - LIBERE O ACESSO VIP]".
-                4. Diga que para ver o resto ele deve clicar no botão laranja de upgrade.
+                ### REGRA DE NEGÓCIO: MODO TRIAL (DEGUSTAÇÃO) ###
+                Você é a Ana, assistente do Treino Fit. O usuário ainda não é VIP.
+                
+                REGRAS OBRIGATÓRIAS:
+                1. Calcule e mostre IMC, TMB e ingestão de água.
+                2. Detalhe APENAS a primeira refeição (Café da Manhã).
+                3. Para Almoço, Lanche e Jantar, escreva exatamente: "[CONTEÚDO BLOQUEADO]".
+                4. Finalize a mensagem com esta frase exata: "Para ver o resto do seu plano, clique no BOTÃO LARANJA que apareceu abaixo!"
+                
+                NÃO forneça a dieta completa sob nenhuma hipótese neste modo.
             `;
         } else {
-            instrucaoSeguranca = "USUÁRIO VIP: Forneça a dieta completa, treinos e ignore qualquer trava de bloqueio.";
+            instrucaoSeguranca = `
+                ### MODO VIP ATIVO ###
+                O usuário é VIP. Forneça a dieta completa (24h), treinos detalhados e orientações premium sem restrições.
+            `;
         }
 
+        // 3. Formata o histórico para a OpenAI (limite de 10 mensagens para economia)
         const historicoParaIA = user.historico
             .filter(msg => msg && msg.content)
             .slice(-10)
@@ -48,31 +58,34 @@ export const perguntaReceita = async (req, res) => {
                 content: msg.content.trim()
             }));
 
-        // Adiciona a pergunta atual
-        historicoParaIA.push({ role: 'user', content: mensagemAtual });
+        // 4. Monta o payload final (System + Histórico + Pergunta Atual)
+        const mensagensParaEnviar = [
+            { role: 'system', content: instrucaoSeguranca },
+            ...historicoParaIA,
+            { role: 'user', content: mensagemAtual }
+        ];
 
-        // Adiciona instrução de sistema
-        historicoParaIA.unshift({ role: 'system', content: instrucaoSeguranca });
+        // 5. Obtém a resposta da IA
+        const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        const respostaIA = await obterRespostaReceitas(historicoParaIA);
-
-        // Salva no banco
+        // 6. Salva a interação no Banco de Dados
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         await user.save();
 
+        // 7. Retorna a resposta e o status do plano para o Front-end
         res.json({ 
             resposta: respostaIA,
             isTrial: isTrial 
         });
 
     } catch (err) {
-        console.error("ERRO NO CONTROLLER:", err.message);
-        res.status(500).json({ erro: "Erro ao processar pergunta" });
+        console.error("ERRO NO CONTROLLER PERGUNTA:", err.message);
+        res.status(500).json({ erro: "Erro ao processar sua solicitação de treino/dieta" });
     }
 };
 
-// --- NOVA FUNÇÃO: ATUALIZAR PARA VIP NO BANCO ---
+// --- FUNÇÃO PARA TORNAR VIP ---
 export const tornarVip = async (req, res) => {
     try {
         const { whatsapp } = req.body;
@@ -84,11 +97,15 @@ export const tornarVip = async (req, res) => {
         );
 
         if (!user) {
-            return res.status(404).json({ erro: "Usuário não encontrado" });
+            return res.status(404).json({ erro: "Usuário não encontrado para upgrade" });
         }
 
-        res.json({ mensagem: "Status atualizado para VIP com sucesso!", user });
+        res.json({ 
+            mensagem: "Parabéns! Agora você é VIP no Treino Fit.", 
+            user 
+        });
     } catch (err) {
-        res.status(500).json({ erro: "Erro ao atualizar para VIP" });
+        console.error("ERRO AO TORNAR VIP:", err.message);
+        res.status(500).json({ erro: "Erro ao atualizar status para VIP" });
     }
 };
