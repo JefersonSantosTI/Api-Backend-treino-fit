@@ -11,7 +11,7 @@ export const obterHistorico = async (req, res) => {
 
         const isVip = user.planStatus === 'vip';
 
-        const historicoLimpo = user.historico.map(msg => {
+        const historicoLimpo = (user.historico || []).map(msg => {
             let texto = msg.content || "";
             if (isVip) {
                 texto = texto.replace(/\[CONTEÚDO BLOQUEADO\]/g, "✅ (Liberado)");
@@ -27,7 +27,7 @@ export const obterHistorico = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO DE PERGUNTA ATUALIZADA (COM DADOS DE PERFIL) ---
+// --- FUNÇÃO DE PERGUNTA ATUALIZADA ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw } = req.body;
@@ -44,19 +44,28 @@ export const perguntaReceita = async (req, res) => {
             user = await Usuario.create({ 
                 whatsapp, 
                 historico: [], 
-                planStatus: 'trial' 
+                planStatus: 'trial',
+                nome: "Cliente",
+                peso: "0",
+                altura: "0",
+                meta: "Emagrecimento"
             });
         }
 
-        const isTrial = user.planStatus === 'trial' || !user.planStatus;
+        const statusAtual = user.planStatus || 'trial';
+        const isTrial = statusAtual === 'trial';
 
-        // --- NOVO: CONSTRUÇÃO DOS DADOS DE PERFIL PARA A IA ---
-        // Aqui pegamos os dados reais do banco para a IA não inventar ou perguntar
+        // --- PROTEÇÃO DE DADOS (Evita erro 500 se o campo for nulo) ---
+        const pesoUser = user.peso || "Não informado";
+        const alturaUser = user.altura || "Não informada";
+        const nomeUser = user.nome || "Guerreiro(a)";
+        const metaUser = user.meta || "Emagrecimento";
+
         const infoUsuario = `
-            NOME DO USUÁRIO: ${user.nome || "Cliente"}
-            PESO ATUAL: ${user.peso || "Não informado"}kg
-            ALTURA: ${user.altura || "Não informada"}m
-            META: ${user.meta || "Emagrecimento"}
+            NOME DO USUÁRIO: ${nomeUser}
+            PESO ATUAL: ${pesoUser}kg
+            ALTURA: ${alturaUser}m
+            META: ${metaUser}
         `;
 
         let instrucaoSeguranca = "";
@@ -65,42 +74,33 @@ export const perguntaReceita = async (req, res) => {
                 ### REGRA DE NEGÓCIO: MODO TRIAL ###
                 Você é a Ana do Treino Fit. 
                 DADOS DO PERFIL: ${infoUsuario}
-                
                 REGRAS:
-                1. JAMAIS peça nome, peso, altura ou WhatsApp, você já tem esses dados acima.
+                1. JAMAIS peça nome, peso ou altura. Use os dados acima.
                 2. Detalhe APENAS o Café da Manhã.
                 3. Para Almoço, Lanche e Jantar, escreva obrigatoriamente: "[CONTEÚDO BLOQUEADO]".
-                4. Finalize com: "Para ver o resto do seu plano, clique no BOTÃO LARANJA que apareceu abaixo!"
+                4. Finalize incentivando o upgrade para o VIP.
             `;
         } else {
             instrucaoSeguranca = `
                 ### MODO VIP LIBERADO ###
                 DADOS DO PERFIL: ${infoUsuario}
-                O USUÁRIO É VIP. VOCÊ ESTÁ PROIBIDA DE USAR A PALAVRA "BLOQUEADO".
-                ENTREGUE A DIETA E TREINOS COMPLETOS COM DETALHES.
-                Use os dados de peso (${user.peso}kg) para todos os cálculos de macros e IMC.
-                JAMAIS peça os dados de perfil novamente, você já os possui.
+                O USUÁRIO É VIP. ENTREGUE TUDO COMPLETO.
+                Use o peso de ${pesoUser}kg para cálculos.
+                Não peça dados novamente.
             `;
         }
 
-        let historicoParaIA = user.historico
+        let historicoParaIA = (user.historico || [])
             .filter(msg => msg && msg.content)
             .slice(-10)
-            .map(msg => {
-                let conteudo = msg.content.trim();
-                if (!isTrial) {
-                    conteudo = conteudo
-                        .replace(/\[CONTEÚDO BLOQUEADO\]/g, "(Conteúdo liberado anteriormente)")
-                        .replace(/Para ver o resto do seu plano.*/gi, "Aproveite seu acesso VIP!");
-                }
-                return {
-                    role: msg.role === 'assistant' ? 'assistant' : 'user',
-                    content: conteudo
-                };
-            });
+            .map(msg => ({
+                role: msg.role === 'assistant' ? 'assistant' : 'user',
+                content: msg.content
+            }));
 
-        // Forçamos a IA a ler os dados corretos na última mensagem para evitar que ela use pesos antigos do histórico
-        const promptFinalComContexto = `[CONTEXTO ATUAL: Peso ${user.peso}kg, Status ${user.planStatus.toUpperCase()}]. Usuário diz: ${mensagemAtual}`;
+        // --- CORREÇÃO DO ERRO 500 AQUI ---
+        // Usamos statusAtual direto para evitar o erro de toUpperCase() em campo nulo
+        const promptFinalComContexto = `[CONTEXTO: Peso ${pesoUser}kg, Status ${statusAtual.toUpperCase()}]. Usuário: ${mensagemAtual}`;
 
         const mensagensParaEnviar = [
             { role: 'system', content: instrucaoSeguranca },
@@ -110,7 +110,7 @@ export const perguntaReceita = async (req, res) => {
 
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // Salvamos a mensagem original do usuário (sem o prefixo de contexto) para o histórico ficar limpo
+        // Salvar no histórico
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         await user.save();
@@ -121,8 +121,8 @@ export const perguntaReceita = async (req, res) => {
         });
 
     } catch (err) {
-        console.error("ERRO NO CONTROLLER PERGUNTA:", err.message);
-        res.status(500).json({ erro: "Erro ao processar sua solicitação" });
+        console.error("ERRO NO CONTROLLER PERGUNTA:", err);
+        res.status(500).json({ erro: "Erro interno no servidor" });
     }
 };
 
@@ -130,16 +130,13 @@ export const perguntaReceita = async (req, res) => {
 export const tornarVip = async (req, res) => {
     try {
         const { whatsapp } = req.body;
-        
         const user = await Usuario.findOneAndUpdate(
             { whatsapp: String(whatsapp).trim() },
             { planStatus: 'vip' },
             { new: true }
         );
-
         if (!user) return res.status(404).json({ erro: "Usuário não encontrado" });
-
-        res.json({ mensagem: "Parabéns! Agora você é VIP no Treino Fit.", user });
+        res.json({ mensagem: "VIP Ativado!", user });
     } catch (err) {
         res.status(500).json({ erro: "Erro ao atualizar status" });
     }
