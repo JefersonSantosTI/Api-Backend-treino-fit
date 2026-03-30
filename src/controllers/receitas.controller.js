@@ -27,7 +27,7 @@ export const obterHistorico = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO DE PERGUNTA ATUALIZADA ---
+// --- FUNÇÃO DE PERGUNTA ATUALIZADA (BLINDADA CONTRA AMNÉSIA) ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw } = req.body;
@@ -45,84 +45,84 @@ export const perguntaReceita = async (req, res) => {
                 whatsapp, 
                 historico: [], 
                 planStatus: 'trial',
-                nome: "Cliente",
-                peso: "0",
-                altura: "0",
+                nome: "Jeferson", // Nome padrão para evitar perguntas
+                peso: "100",
+                altura: "1.82",
                 meta: "Emagrecimento"
             });
         }
 
-        const statusAtual = user.planStatus || 'trial';
-        const isTrial = statusAtual === 'trial';
+        const isVip = user.planStatus === 'vip';
+        const statusTexto = isVip ? 'VIP' : 'TRIAL';
 
-        // --- PROTEÇÃO DE DADOS (Evita erro 500 se o campo for nulo) ---
-        const pesoUser = user.peso || "Não informado";
-        const alturaUser = user.altura || "Não informada";
-        const nomeUser = user.nome || "Guerreiro(a)";
-        const metaUser = user.meta || "Emagrecimento";
-
-        const infoUsuario = `
-            NOME DO USUÁRIO: ${nomeUser}
-            PESO ATUAL: ${pesoUser}kg
-            ALTURA: ${alturaUser}m
-            META: ${metaUser}
-        `;
+        // --- DADOS REAIS PARA INJETAR NO CÉREBRO DA IA ---
+        const pesoUser = user.peso && user.peso !== "0" ? user.peso : "100";
+        const alturaUser = user.altura && user.altura !== "0" ? user.altura : "1.82";
+        const nomeUser = user.nome || "Jeferson";
 
         let instrucaoSeguranca = "";
-        if (isTrial) {
+        if (!isVip) {
             instrucaoSeguranca = `
-                ### REGRA DE NEGÓCIO: MODO TRIAL ###
-                Você é a Ana do Treino Fit. 
-                DADOS DO PERFIL: ${infoUsuario}
-                REGRAS:
-                1. JAMAIS peça nome, peso ou altura. Use os dados acima.
-                2. Detalhe APENAS o Café da Manhã.
-                3. Para Almoço, Lanche e Jantar, escreva obrigatoriamente: "[CONTEÚDO BLOQUEADO]".
-                4. Finalize incentivando o upgrade para o VIP.
+                ### MODO TRIAL ###
+                Você é a Ana. 
+                DADOS: ${nomeUser}, ${pesoUser}kg.
+                REGRAS: 
+                1. JAMAIS peça dados (nome/peso/altura), você já tem!
+                2. Libere APENAS o Café da Manhã. 
+                3. Almoço/Jantar use: "[CONTEÚDO BLOQUEADO]".
+                4. Finalize mandando clicar no botão laranja.
             `;
         } else {
             instrucaoSeguranca = `
-                ### MODO VIP LIBERADO ###
-                DADOS DO PERFIL: ${infoUsuario}
-                O USUÁRIO É VIP. ENTREGUE TUDO COMPLETO.
-                Use o peso de ${pesoUser}kg para cálculos.
-                Não peça dados novamente.
+                ### MODO VIP TOTAL ###
+                Você é a Ana. O usuário ${nomeUser} é VIP.
+                DADOS: ${pesoUser}kg, ${alturaUser}m.
+                REGRAS ABSOLUTAS:
+                1. NÃO peça nome, peso, altura ou idade. Use os dados acima.
+                2. PROIBIDO usar "BLOQUEADO". Entregue dieta e treinos COMPLETOS.
+                3. Se ele disser "Oi", seja direta: "Olá ${nomeUser}! Como posso ajudar no seu treino hoje?"
+                4. Não seja repetitiva. Se ele já tem a dieta, sugira ajustes ou treinos.
             `;
         }
 
+        // --- FILTRO DE HISTÓRICO (Pega apenas as últimas 5 para não "poluir" a regra VIP) ---
         let historicoParaIA = (user.historico || [])
-            .filter(msg => msg && msg.content)
-            .slice(-10)
+            .filter(msg => msg && msg.content && !msg.content.includes("Olá")) // Remove os "olás" inúteis do histórico
+            .slice(-5) 
             .map(msg => ({
                 role: msg.role === 'assistant' ? 'assistant' : 'user',
                 content: msg.content
             }));
 
-        // --- CORREÇÃO DO ERRO 500 AQUI ---
-        // Usamos statusAtual direto para evitar o erro de toUpperCase() em campo nulo
-        const promptFinalComContexto = `[CONTEXTO: Peso ${pesoUser}kg, Status ${statusAtual.toUpperCase()}]. Usuário: ${mensagemAtual}`;
+        // Injetamos o contexto de Peso e VIP na própria pergunta atual
+        const promptFinal = `[CONTEXTO: ${nomeUser}, ${pesoUser}kg, STATUS: ${statusTexto}]. Pergunta: ${mensagemAtual}`;
 
         const mensagensParaEnviar = [
             { role: 'system', content: instrucaoSeguranca },
             ...historicoParaIA,
-            { role: 'user', content: promptFinalComContexto }
+            { role: 'user', content: promptFinal }
         ];
 
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // Salvar no histórico
+        // Salvar histórico limpo
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
+        
+        // Se o usuário digitou um peso novo na conversa, atualizamos o banco silenciosamente
+        const encontrouPeso = mensagemAtual.match(/(\d+)\s*kg/i);
+        if (encontrouPeso) user.peso = encontrouPeso[1];
+
         await user.save();
 
         res.json({ 
             resposta: respostaIA,
-            isTrial: isTrial 
+            isTrial: !isVip 
         });
 
     } catch (err) {
-        console.error("ERRO NO CONTROLLER PERGUNTA:", err);
-        res.status(500).json({ erro: "Erro interno no servidor" });
+        console.error("ERRO NO CONTROLLER:", err);
+        res.status(500).json({ erro: "Erro interno" });
     }
 };
 
