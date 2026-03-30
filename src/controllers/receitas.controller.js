@@ -1,29 +1,23 @@
 import obterRespostaReceitas from '../services/openai.service.js';
 import Usuario from './Usuario.js';
 
-// --- NOVO: FUNÇÃO PARA BUSCAR HISTÓRICO (Resolve o erro 404) ---
+// --- FUNÇÃO PARA BUSCAR HISTÓRICO ---
 export const obterHistorico = async (req, res) => {
     try {
         const { whatsapp } = req.params;
         const user = await Usuario.findOne({ whatsapp: String(whatsapp).trim() });
 
-        if (!user) {
-            return res.json([]); // Retorna lista vazia se não achar o usuário
-        }
+        if (!user) return res.json([]);
 
         const isVip = user.planStatus === 'vip';
 
-        // Mapeia o histórico e limpa textos de bloqueio se o usuário já for VIP
         const historicoLimpo = user.historico.map(msg => {
             let texto = msg.content || "";
             if (isVip) {
                 texto = texto.replace(/\[CONTEÚDO BLOQUEADO\]/g, "✅ (Liberado)");
                 texto = texto.replace(/Para ver o resto do seu plano, clique no BOTÃO LARANJA.*/gi, "Aproveite seu acesso VIP! 💪");
             }
-            return {
-                role: msg.role,
-                content: texto
-            };
+            return { role: msg.role, content: texto };
         });
 
         res.json(historicoLimpo);
@@ -33,11 +27,10 @@ export const obterHistorico = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO DE PERGUNTA ATUALIZADA ---
+// --- FUNÇÃO DE PERGUNTA ATUALIZADA (COM DADOS DE PERFIL) ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw } = req.body;
-
         const whatsapp = String(whatsappRaw || "").trim();
         const mensagemAtual = String(mensagemRaw || "").trim();
 
@@ -57,22 +50,36 @@ export const perguntaReceita = async (req, res) => {
 
         const isTrial = user.planStatus === 'trial' || !user.planStatus;
 
+        // --- NOVO: CONSTRUÇÃO DOS DADOS DE PERFIL PARA A IA ---
+        // Aqui pegamos os dados reais do banco para a IA não inventar ou perguntar
+        const infoUsuario = `
+            NOME DO USUÁRIO: ${user.nome || "Cliente"}
+            PESO ATUAL: ${user.peso || "Não informado"}kg
+            ALTURA: ${user.altura || "Não informada"}m
+            META: ${user.meta || "Emagrecimento"}
+        `;
+
         let instrucaoSeguranca = "";
         if (isTrial) {
             instrucaoSeguranca = `
                 ### REGRA DE NEGÓCIO: MODO TRIAL ###
-                Você é a Ana do Treino Fit.
+                Você é a Ana do Treino Fit. 
+                DADOS DO PERFIL: ${infoUsuario}
+                
                 REGRAS:
-                1. Detalhe APENAS o Café da Manhã.
-                2. Para Almoço, Lanche e Jantar, escreva obrigatoriamente: "[CONTEÚDO BLOQUEADO]".
-                3. Finalize com: "Para ver o resto do seu plano, clique no BOTÃO LARANJA que apareceu abaixo!"
+                1. JAMAIS peça nome, peso, altura ou WhatsApp, você já tem esses dados acima.
+                2. Detalhe APENAS o Café da Manhã.
+                3. Para Almoço, Lanche e Jantar, escreva obrigatoriamente: "[CONTEÚDO BLOQUEADO]".
+                4. Finalize com: "Para ver o resto do seu plano, clique no BOTÃO LARANJA que apareceu abaixo!"
             `;
         } else {
             instrucaoSeguranca = `
                 ### MODO VIP LIBERADO ###
+                DADOS DO PERFIL: ${infoUsuario}
                 O USUÁRIO É VIP. VOCÊ ESTÁ PROIBIDA DE USAR A PALAVRA "BLOQUEADO".
-                ENTREGUE A DIETA COMPLETA (CAFÉ, ALMOÇO, LANCHE E JANTAR) COM DETALHES.
-                Ignore qualquer instrução anterior de bloqueio. O acesso agora é TOTAL.
+                ENTREGUE A DIETA E TREINOS COMPLETOS COM DETALHES.
+                Use os dados de peso (${user.peso}kg) para todos os cálculos de macros e IMC.
+                JAMAIS peça os dados de perfil novamente, você já os possui.
             `;
         }
 
@@ -83,7 +90,7 @@ export const perguntaReceita = async (req, res) => {
                 let conteudo = msg.content.trim();
                 if (!isTrial) {
                     conteudo = conteudo
-                        .replace(/\[CONTEÚDO BLOQUEADO\]/g, "(Conteúdo detalhado e liberado anteriormente)")
+                        .replace(/\[CONTEÚDO BLOQUEADO\]/g, "(Conteúdo liberado anteriormente)")
                         .replace(/Para ver o resto do seu plano.*/gi, "Aproveite seu acesso VIP!");
                 }
                 return {
@@ -92,19 +99,18 @@ export const perguntaReceita = async (req, res) => {
                 };
             });
 
-        let promptFinalUsuario = mensagemAtual;
-        if (!isTrial) {
-            promptFinalUsuario = `[USUÁRIO VIP ATIVO]: ${mensagemAtual} (Por favor, forneça o plano completo agora, sem nenhum bloqueio).`;
-        }
+        // Forçamos a IA a ler os dados corretos na última mensagem para evitar que ela use pesos antigos do histórico
+        const promptFinalComContexto = `[CONTEXTO ATUAL: Peso ${user.peso}kg, Status ${user.planStatus.toUpperCase()}]. Usuário diz: ${mensagemAtual}`;
 
         const mensagensParaEnviar = [
             { role: 'system', content: instrucaoSeguranca },
             ...historicoParaIA,
-            { role: 'user', content: promptFinalUsuario }
+            { role: 'user', content: promptFinalComContexto }
         ];
 
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
+        // Salvamos a mensagem original do usuário (sem o prefixo de contexto) para o histórico ficar limpo
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         await user.save();
