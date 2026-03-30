@@ -1,22 +1,24 @@
 import express from 'express';
-// Importe a nova função obterHistorico aqui!
 import { perguntaReceita, tornarVip, obterHistorico } from '../controllers/receitas.controller.js';
 
 const router = express.Router();
 
-// Rota padrão para teste
+// 1. Rota de Teste (Para ver se o servidor está online)
 router.get("/", (req, res) => {
-  res.json({ status: "Rota receitas ativa 🚀" });
+  res.json({ status: "Servidor Treino Fit Rodando! 🚀" });
 });
 
-// --- ESTA É A LINHA QUE RESOLVE O ERRO 404 DO F12 ---
-// Ela diz: "Quando pedirem o histórico do whatsapp X, use a função obterHistorico"
+// 2. Rota do Histórico (Para carregar as mensagens antigas)
+// Certifique-se que o Front chama: /api/receitas/historico/SEU_NUMERO
 router.get('/historico/:whatsapp', obterHistorico);
 
-// Rota para fazer a pergunta para a IA
+// 3. Rota de Chat (Onde a IA responde)
+// Certifique-se que o Front chama: /api/receitas/perguntar
 router.post('/perguntar', perguntaReceita);
 
-// Rota para mudar o status do usuário para VIP
+// 4. Rota VIP (Onde o código TREINOFIT2026 ativa o plano)
+// IMPORTANTE: Se o Front chamar /tornarVip (sem hífen), mude aqui também!
+// Recomendo usar 'tornar-vip' conforme abaixo:
 router.post('/tornar-vip', tornarVip);
 
 export default router;
