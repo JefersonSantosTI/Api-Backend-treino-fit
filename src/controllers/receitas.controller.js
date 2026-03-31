@@ -1,7 +1,7 @@
 import obterRespostaReceitas from '../services/openai.service.js';
 import Usuario from './Usuario.js';
 
-// --- FUNÇÃO 1: OBTER HISTÓRICO (ESTAVA FALTANDO!) ---
+// --- FUNÇÃO 1: OBTER HISTÓRICO ---
 export const obterHistorico = async (req, res) => {
     try {
         const { whatsapp } = req.params;
@@ -14,6 +14,7 @@ export const obterHistorico = async (req, res) => {
         const historicoLimpo = (user.historico || []).map(msg => {
             let texto = msg.content || "";
             if (isVip) {
+                // Se virou VIP, limpamos as tags de bloqueio das mensagens antigas
                 texto = texto.replace(/\[CONTEÚDO BLOQUEADO\]/g, "✅ (Liberado)");
                 texto = texto.replace(/Para ver o resto do seu plano, clique no BOTÃO LARANJA.*/gi, "Aproveite seu acesso VIP! 💪");
             }
@@ -27,7 +28,7 @@ export const obterHistorico = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO 2: PERGUNTA ATUALIZADA (DINÂMICA) ---
+// --- FUNÇÃO 2: PERGUNTA ATUALIZADA (COM BLOQUEIO RÍGIDO) ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw, nomeNoPerfil } = req.body;
@@ -53,31 +54,36 @@ export const perguntaReceita = async (req, res) => {
         }
 
         const isVip = user.planStatus === 'vip';
-        const statusTexto = isVip ? 'VIP' : 'TRIAL';
-
         const nomeUser = user.nome || "Guerreiro(a)";
         const pesoUser = user.peso && user.peso !== "0" ? `${user.peso}kg` : "não informado";
         const alturaUser = user.altura && user.altura !== "0" ? `${user.altura}m` : "não informada";
 
-        let instrucaoSeguranca = `Você é a Ana, nutricionista do TreinoFit. 
-        Você está conversando com: ${nomeUser}.
+        // --- DEFINIÇÃO DO PROMPT (REGRAS DE NEGÓCIO) ---
+        let instrucaoSeguranca = `Você é a Ana, nutricionista do TreinoFit. Você conversa com ${nomeUser}.
         Dados atuais: Peso ${pesoUser}, Altura ${alturaUser}.`;
 
         if (!isVip) {
             instrucaoSeguranca += `
-                ### MODO TRIAL ###
-                REGRAS: 
-                1. Libere APENAS o Café da Manhã. 
-                2. Para Almoço ou Jantar, responda estritamente: "[CONTEÚDO BLOQUEADO]".
-                3. Finalize dizendo que ele precisa do Plano VIP para liberar o resto.
+                ### PROTOCOLO DE CONVERSÃO TRIAL (DEGUSTAÇÃO) ###
+                1. O usuário ${nomeUser} ainda não é VIP. Sua missão é mostrar autoridade técnica e depois travar o conteúdo.
+                2. ESTRUTURA DA RESPOSTA:
+                   - Inicie com uma análise profissional curta sobre os dados dele (IMC, TMB ou o que ele perguntou).
+                   - Entregue APENAS 30% do que foi pedido (Ex: Apenas o Café da Manhã e 1 exercício de treino).
+                   - Na metade da resposta, você deve OBRIGATORIAMENTE interromper o fluxo e inserir a trava.
+                
+                3. FRASE DE BLOQUEIO OBRIGATÓRIA (NA METADE DA RESPOSTA):
+                   "\n\n[CONTEÚDO BLOQUEADO]\n\n${nomeUser}, analisei seu perfil e sua estratégia completa de dieta e treinos de alta performance já está gerada no meu sistema! 🚀
+                   
+                   Para visualizar o restante do seu plano (Almoço, Jantar, Ceia e Cronograma de Treinos Completo), clique no BOTÃO LARANJA abaixo e ative seu Acesso VIP Premium agora mesmo!"
+                
+                4. RESTRIÇÃO: Nunca entregue quantidades ou horários de Almoço e Jantar antes da tag [CONTEÚDO BLOQUEADO].
             `;
         } else {
             instrucaoSeguranca += `
-                ### MODO VIP TOTAL ###
-                REGRAS:
-                1. O usuário ${nomeUser} é VIP. Libere dietas e treinos COMPLETOS.
-                2. Nunca use a palavra "BLOQUEADO".
-                3. Seja motivadora e chame-o(a) pelo nome: ${nomeUser}.
+                ### MODO VIP LIBERADO ###
+                1. O usuário ${nomeUser} é VIP. Forneça planos completos, treinos de alta performance e dietas detalhadas.
+                2. NUNCA use a palavra BLOQUEADO.
+                3. Seja motivadora e use o nome do usuário: ${nomeUser}.
             `;
         }
 
@@ -96,9 +102,11 @@ export const perguntaReceita = async (req, res) => {
 
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
+        // Salva no banco de dados
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         
+        // Atualização automática de peso se detectado na mensagem
         const encontrouPeso = mensagemAtual.match(/(\d+)\s*kg/i);
         if (encontrouPeso) user.peso = encontrouPeso[1];
 
@@ -115,7 +123,7 @@ export const perguntaReceita = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO 3: TORNAR VIP (PARA O FLUXO DE PAGAMENTO) ---
+// --- FUNÇÃO 3: TORNAR VIP ---
 export const tornarVip = async (req, res) => {
     try {
         const { whatsapp } = req.body;
