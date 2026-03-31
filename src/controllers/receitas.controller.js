@@ -9,13 +9,11 @@ export const obterHistorico = async (req, res) => {
 
         if (!user) return res.json([]);
 
-        // AJUSTE: Lendo o campo 'pago' do seu banco de dados
         const isVip = user.pago === true || user.pago === "true";
 
         const historicoLimpo = (user.historico || []).map(msg => {
             let texto = msg.content || "";
             if (isVip) {
-                // Limpa o histórico antigo para o VIP não ver mensagens de bloqueio
                 texto = texto.replace(/\[CONTEÚDO BLOQUEADO\]/g, "✅ (Liberado)");
                 texto = texto.replace(/Para visualizar o restante do seu plano.*/gi, "Aproveite seu acesso VIP! 💪");
                 texto = texto.replace(/clique no BOTÃO LARANJA.*/gi, "Plano completo liberado.");
@@ -30,7 +28,7 @@ export const obterHistorico = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO 2: PERGUNTA COM LIMPEZA DE SEGURANÇA ---
+// --- FUNÇÃO 2: PERGUNTA COM SALVAMENTO AUTOMÁTICO DE PERFIL ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw, nomeNoPerfil } = req.body;
@@ -47,7 +45,7 @@ export const perguntaReceita = async (req, res) => {
             user = await Usuario.create({ 
                 whatsapp, 
                 historico: [], 
-                pago: false, // Campo correto conforme seu banco
+                pago: false,
                 nome: nomeNoPerfil || "Guerreiro(a)",
                 peso: "0",
                 altura: "0",
@@ -55,7 +53,6 @@ export const perguntaReceita = async (req, res) => {
             });
         }
 
-        // AJUSTE: Lendo o campo 'pago'
         const isVip = user.pago === true || user.pago === "true";
         const nomeUser = user.nome || "Guerreiro(a)";
         const pesoUser = user.peso && user.peso !== "0" ? `${user.peso}kg` : "não informado";
@@ -66,20 +63,14 @@ export const perguntaReceita = async (req, res) => {
 
         if (!isVip) {
             instrucaoSeguranca += `
-                ### PROTOCOLO DE CONVERSÃO TRIAL (DEGUSTAÇÃO) ###
-                1. O usuário ${nomeUser} ainda não é VIP. Sua missão é mostrar autoridade técnica e depois travar o conteúdo.
-                2. Na metade da resposta, você deve OBRIGATORIAMENTE inserir:
-                
-                [CONTEÚDO BLOQUEADO]
-                
-                ${nomeUser}, analisei seu perfil e sua estratégia completa já está gerada! 🚀
-                Para visualizar o restante do seu plano, clique no BOTÃO LARANJA abaixo e ative seu Acesso VIP!
+                ### PROTOCOLO DE CONVERSÃO TRIAL ###
+                1. O usuário ainda não é VIP. Mostre autoridade e trave o conteúdo na metade.
+                2. Use OBRIGATORIAMENTE: [CONTEÚDO BLOQUEADO] seguido do convite para o VIP.
             `;
         } else {
             instrucaoSeguranca += `
                 ### MODO VIP LIBERADO ###
-                1. O usuário ${nomeUser} é VIP. Forneça planos COMPLETOS e DETALHADOS.
-                2. NUNCA use a palavra BLOQUEADO ou peça para clicar em botão.
+                1. Forneça planos COMPLETOS. Nunca mencione bloqueios ou botões.
             `;
         }
 
@@ -98,8 +89,6 @@ export const perguntaReceita = async (req, res) => {
 
         let respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // --- TRAVA DE SEGURANÇA FINAL ---
-        // Se for VIP, removemos qualquer erro da IA que mencione bloqueio
         if (isVip) {
             respostaIA = String(respostaIA)
                 .replace(/\[CONTEÚDO BLOQUEADO\]/gi, "")
@@ -108,17 +97,25 @@ export const perguntaReceita = async (req, res) => {
                 .trim();
         }
 
+        // --- LÓGICA DE EXTRAÇÃO DE DADOS (Para atualizar a Home) ---
+        // Se a Ana identificar dados na conversa, salvamos no banco
+        const regexPeso = mensagemAtual.match(/(\d+(?:[.,]\d+)?)\s*kg/i);
+        const regexAltura = mensagemAtual.match(/(\d(?:[.,]\d+)?)\s*m/i);
+        const regexNome = mensagemAtual.match(/meu nome é (.*?)($|[.,!])/i);
+
+        if (regexPeso) user.peso = regexPeso[1].replace(',', '.');
+        if (regexAltura) user.altura = regexAltura[1].replace(',', '.');
+        if (regexNome) user.nome = regexNome[1].trim();
+
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         
-        const encontrouPeso = mensagemAtual.match(/(\d+)\s*kg/i);
-        if (encontrouPeso) user.peso = encontrouPeso[1];
-
         await user.save();
 
         res.json({ 
             resposta: respostaIA,
-            isTrial: !isVip 
+            isTrial: !isVip,
+            perfilAtualizado: { nome: user.nome, peso: user.peso, altura: user.altura }
         });
 
     } catch (err) {
@@ -127,18 +124,41 @@ export const perguntaReceita = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO 3: TORNAR VIP (ATUALIZADA PARA CAMPO 'PAGO') ---
+// --- FUNÇÃO 3: TORNAR VIP ---
 export const tornarVip = async (req, res) => {
     try {
         const { whatsapp } = req.body;
         const user = await Usuario.findOneAndUpdate(
             { whatsapp: String(whatsapp).trim() },
-            { pago: true }, // Agora atualiza o campo certo
+            { pago: true },
             { new: true }
         );
         if (!user) return res.status(404).json({ erro: "Usuário não encontrado" });
         res.json({ mensagem: "VIP Ativado!", user });
     } catch (err) {
         res.status(500).json({ erro: "Erro ao atualizar status" });
+    }
+};
+
+// --- FUNÇÃO 4: NOVA - OBTER DADOS PARA A HOME ---
+export const obterDadosUsuario = async (req, res) => {
+    try {
+        const { whatsapp } = req.params;
+        const user = await Usuario.findOne({ whatsapp: String(whatsapp).trim() });
+
+        if (!user) {
+            return res.status(404).json({ erro: "Usuário não encontrado" });
+        }
+
+        res.json({
+            nome: user.nome || "Guerreiro(a)",
+            peso: user.peso || "0",
+            altura: user.altura || "0",
+            meta: user.meta || "Emagrecimento",
+            pago: user.pago === true || user.pago === "true"
+        });
+    } catch (err) {
+        console.error("Erro ao buscar dados do usuário:", err);
+        res.status(500).json({ erro: "Erro interno no servidor" });
     }
 };
