@@ -106,7 +106,9 @@ function App() {
     window.location.reload();
   };
 
-  if (!usuario) return <Login aoLogar={handleLogin} />;
+  if (!usuario) {
+    return res.status(404).json({ mensagem: "Usuário não encontrado" });
+}
 
   return (
     <div className="fixed inset-0 bg-gray-950 text-white font-sans overflow-hidden flex flex-col">
