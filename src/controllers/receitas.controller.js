@@ -1,36 +1,10 @@
 import obterRespostaReceitas from '../services/openai.service.js';
 import Usuario from './Usuario.js';
 
-// --- FUNÇÃO PARA BUSCAR HISTÓRICO ---
-export const obterHistorico = async (req, res) => {
-    try {
-        const { whatsapp } = req.params;
-        const user = await Usuario.findOne({ whatsapp: String(whatsapp).trim() });
-
-        if (!user) return res.json([]);
-
-        const isVip = user.planStatus === 'vip';
-
-        const historicoLimpo = (user.historico || []).map(msg => {
-            let texto = msg.content || "";
-            if (isVip) {
-                texto = texto.replace(/\[CONTEÚDO BLOQUEADO\]/g, "✅ (Liberado)");
-                texto = texto.replace(/Para ver o resto do seu plano, clique no BOTÃO LARANJA.*/gi, "Aproveite seu acesso VIP! 💪");
-            }
-            return { role: msg.role, content: texto };
-        });
-
-        res.json(historicoLimpo);
-    } catch (err) {
-        console.error("ERRO AO BUSCAR HISTÓRICO:", err.message);
-        res.status(500).json({ erro: "Erro ao buscar histórico" });
-    }
-};
-
-// --- FUNÇÃO DE PERGUNTA ATUALIZADA (BLINDADA CONTRA AMNÉSIA) ---
+// --- FUNÇÃO DE PERGUNTA ATUALIZADA (DINÂMICA POR USUÁRIO) ---
 export const perguntaReceita = async (req, res) => {
     try {
-        const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw } = req.body;
+        const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw, nomeNoPerfil } = req.body;
         const whatsapp = String(whatsappRaw || "").trim();
         const mensagemAtual = String(mensagemRaw || "").trim();
 
@@ -38,78 +12,74 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "WhatsApp e mensagem são obrigatórios" });
         }
 
+        // Tenta encontrar o usuário
         let user = await Usuario.findOne({ whatsapp });
         
+        // Se não existir, cria um NOVO usando o nome que veio do Front-end (ou um genérico temporário)
         if (!user) {
             user = await Usuario.create({ 
                 whatsapp, 
                 historico: [], 
                 planStatus: 'trial',
-                nome: "Jeferson", // Nome padrão para evitar perguntas
-                peso: "100",
-                altura: "1.82",
-                meta: "Emagrecimento"
+                nome: nomeNoPerfil || "Guerreiro(a)", // Pega o nome real do cadastro ou usa genérico
+                peso: "0",
+                altura: "0",
+                meta: "Definir"
             });
         }
 
         const isVip = user.planStatus === 'vip';
         const statusTexto = isVip ? 'VIP' : 'TRIAL';
 
-        // --- DADOS REAIS PARA INJETAR NO CÉREBRO DA IA ---
-        const pesoUser = user.peso && user.peso !== "0" ? user.peso : "100";
-        const alturaUser = user.altura && user.altura !== "0" ? user.altura : "1.82";
-        const nomeUser = user.nome || "Jeferson";
+        // --- DADOS DINÂMICOS DO BANCO ---
+        const nomeUser = user.nome || "Guerreiro(a)";
+        const pesoUser = user.peso && user.peso !== "0" ? `${user.peso}kg` : "não informado";
+        const alturaUser = user.altura && user.altura !== "0" ? `${user.altura}m` : "não informada";
 
-        let instrucaoSeguranca = "";
+        // Instrução para a IA ser a "Ana" e usar o nome correto
+        let instrucaoSeguranca = `Você é a Ana, nutricionista do TreinoFit. 
+        Você está conversando com: ${nomeUser}.
+        Dados atuais: Peso ${pesoUser}, Altura ${alturaUser}.`;
+
         if (!isVip) {
-            instrucaoSeguranca = `
+            instrucaoSeguranca += `
                 ### MODO TRIAL ###
-                Você é a Ana. 
-                DADOS: ${nomeUser}, ${pesoUser}kg.
                 REGRAS: 
-                1. JAMAIS peça dados (nome/peso/altura), você já tem!
-                2. Libere APENAS o Café da Manhã. 
-                3. Almoço/Jantar use: "[CONTEÚDO BLOQUEADO]".
-                4. Finalize mandando clicar no botão laranja.
+                1. Libere APENAS o Café da Manhã. 
+                2. Para Almoço ou Jantar, responda estritamente: "[CONTEÚDO BLOQUEADO]".
+                3. Finalize dizendo que ele precisa do Plano VIP para liberar o resto.
             `;
         } else {
-            instrucaoSeguranca = `
+            instrucaoSeguranca += `
                 ### MODO VIP TOTAL ###
-                Você é a Ana. O usuário ${nomeUser} é VIP.
-                DADOS: ${pesoUser}kg, ${alturaUser}m.
-                REGRAS ABSOLUTAS:
-                1. NÃO peça nome, peso, altura ou idade. Use os dados acima.
-                2. PROIBIDO usar "BLOQUEADO". Entregue dieta e treinos COMPLETOS.
-                3. Se ele disser "Oi", seja direta: "Olá ${nomeUser}! Como posso ajudar no seu treino hoje?"
-                4. Não seja repetitiva. Se ele já tem a dieta, sugira ajustes ou treinos.
+                REGRAS:
+                1. O usuário ${nomeUser} é VIP. Libere dietas e treinos COMPLETOS.
+                2. Nunca use a palavra "BLOQUEADO".
+                3. Seja motivadora e chame-o(a) pelo nome: ${nomeUser}.
             `;
         }
 
-        // --- FILTRO DE HISTÓRICO (Pega apenas as últimas 5 para não "poluir" a regra VIP) ---
+        // --- HISTÓRICO RECENTE ---
         let historicoParaIA = (user.historico || [])
-            .filter(msg => msg && msg.content && !msg.content.includes("Olá")) // Remove os "olás" inúteis do histórico
-            .slice(-5) 
+            .slice(-6) 
             .map(msg => ({
                 role: msg.role === 'assistant' ? 'assistant' : 'user',
                 content: msg.content
             }));
 
-        // Injetamos o contexto de Peso e VIP na própria pergunta atual
-        const promptFinal = `[CONTEXTO: ${nomeUser}, ${pesoUser}kg, STATUS: ${statusTexto}]. Pergunta: ${mensagemAtual}`;
-
         const mensagensParaEnviar = [
             { role: 'system', content: instrucaoSeguranca },
             ...historicoParaIA,
-            { role: 'user', content: promptFinal }
+            { role: 'user', content: mensagemAtual }
         ];
 
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // Salvar histórico limpo
+        // Salvar no banco
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         
-        // Se o usuário digitou um peso novo na conversa, atualizamos o banco silenciosamente
+        // Lógica simples para atualizar peso se ele disser "estou com 80kg"
         const encontrouPeso = mensagemAtual.match(/(\d+)\s*kg/i);
         if (encontrouPeso) user.peso = encontrouPeso[1];
 
@@ -123,21 +93,5 @@ export const perguntaReceita = async (req, res) => {
     } catch (err) {
         console.error("ERRO NO CONTROLLER:", err);
         res.status(500).json({ erro: "Erro interno" });
-    }
-};
-
-// --- FUNÇÃO PARA TORNAR VIP ---
-export const tornarVip = async (req, res) => {
-    try {
-        const { whatsapp } = req.body;
-        const user = await Usuario.findOneAndUpdate(
-            { whatsapp: String(whatsapp).trim() },
-            { planStatus: 'vip' },
-            { new: true }
-        );
-        if (!user) return res.status(404).json({ erro: "Usuário não encontrado" });
-        res.json({ mensagem: "VIP Ativado!", user });
-    } catch (err) {
-        res.status(500).json({ erro: "Erro ao atualizar status" });
     }
 };
