@@ -9,14 +9,16 @@ export const obterHistorico = async (req, res) => {
 
         if (!user) return res.json([]);
 
-        const isVip = user.planStatus === 'vip';
+        // AJUSTE: Lendo o campo 'pago' do seu banco de dados
+        const isVip = user.pago === true || user.pago === "true";
 
         const historicoLimpo = (user.historico || []).map(msg => {
             let texto = msg.content || "";
             if (isVip) {
-                // Se virou VIP, limpamos as tags de bloqueio das mensagens antigas
+                // Limpa o histórico antigo para o VIP não ver mensagens de bloqueio
                 texto = texto.replace(/\[CONTEÚDO BLOQUEADO\]/g, "✅ (Liberado)");
-                texto = texto.replace(/Para ver o resto do seu plano, clique no BOTÃO LARANJA.*/gi, "Aproveite seu acesso VIP! 💪");
+                texto = texto.replace(/Para visualizar o restante do seu plano.*/gi, "Aproveite seu acesso VIP! 💪");
+                texto = texto.replace(/clique no BOTÃO LARANJA.*/gi, "Plano completo liberado.");
             }
             return { role: msg.role === 'assistant' ? 'assistant' : 'user', content: texto };
         });
@@ -28,7 +30,7 @@ export const obterHistorico = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO 2: PERGUNTA ATUALIZADA (COM BLOQUEIO RÍGIDO) ---
+// --- FUNÇÃO 2: PERGUNTA COM LIMPEZA DE SEGURANÇA ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw, nomeNoPerfil } = req.body;
@@ -45,7 +47,7 @@ export const perguntaReceita = async (req, res) => {
             user = await Usuario.create({ 
                 whatsapp, 
                 historico: [], 
-                planStatus: 'trial',
+                pago: false, // Campo correto conforme seu banco
                 nome: nomeNoPerfil || "Guerreiro(a)",
                 peso: "0",
                 altura: "0",
@@ -53,12 +55,12 @@ export const perguntaReceita = async (req, res) => {
             });
         }
 
-        const isVip = user.planStatus === 'vip';
+        // AJUSTE: Lendo o campo 'pago'
+        const isVip = user.pago === true || user.pago === "true";
         const nomeUser = user.nome || "Guerreiro(a)";
         const pesoUser = user.peso && user.peso !== "0" ? `${user.peso}kg` : "não informado";
         const alturaUser = user.altura && user.altura !== "0" ? `${user.altura}m` : "não informada";
 
-        // --- DEFINIÇÃO DO PROMPT (REGRAS DE NEGÓCIO) ---
         let instrucaoSeguranca = `Você é a Ana, nutricionista do TreinoFit. Você conversa com ${nomeUser}.
         Dados atuais: Peso ${pesoUser}, Altura ${alturaUser}.`;
 
@@ -66,24 +68,18 @@ export const perguntaReceita = async (req, res) => {
             instrucaoSeguranca += `
                 ### PROTOCOLO DE CONVERSÃO TRIAL (DEGUSTAÇÃO) ###
                 1. O usuário ${nomeUser} ainda não é VIP. Sua missão é mostrar autoridade técnica e depois travar o conteúdo.
-                2. ESTRUTURA DA RESPOSTA:
-                   - Inicie com uma análise profissional curta sobre os dados dele (IMC, TMB ou o que ele perguntou).
-                   - Entregue APENAS 30% do que foi pedido (Ex: Apenas o Café da Manhã e 1 exercício de treino).
-                   - Na metade da resposta, você deve OBRIGATORIAMENTE interromper o fluxo e inserir a trava.
+                2. Na metade da resposta, você deve OBRIGATORIAMENTE inserir:
                 
-                3. FRASE DE BLOQUEIO OBRIGATÓRIA (NA METADE DA RESPOSTA):
-                   "\n\n[CONTEÚDO BLOQUEADO]\n\n${nomeUser}, analisei seu perfil e sua estratégia completa de dieta e treinos de alta performance já está gerada no meu sistema! 🚀
-                   
-                   Para visualizar o restante do seu plano (Almoço, Jantar, Ceia e Cronograma de Treinos Completo), clique no BOTÃO LARANJA abaixo e ative seu Acesso VIP Premium agora mesmo!"
+                [CONTEÚDO BLOQUEADO]
                 
-                4. RESTRIÇÃO: Nunca entregue quantidades ou horários de Almoço e Jantar antes da tag [CONTEÚDO BLOQUEADO].
+                ${nomeUser}, analisei seu perfil e sua estratégia completa já está gerada! 🚀
+                Para visualizar o restante do seu plano, clique no BOTÃO LARANJA abaixo e ative seu Acesso VIP!
             `;
         } else {
             instrucaoSeguranca += `
                 ### MODO VIP LIBERADO ###
-                1. O usuário ${nomeUser} é VIP. Forneça planos completos, treinos de alta performance e dietas detalhadas.
-                2. NUNCA use a palavra BLOQUEADO.
-                3. Seja motivadora e use o nome do usuário: ${nomeUser}.
+                1. O usuário ${nomeUser} é VIP. Forneça planos COMPLETOS e DETALHADOS.
+                2. NUNCA use a palavra BLOQUEADO ou peça para clicar em botão.
             `;
         }
 
@@ -100,13 +96,21 @@ export const perguntaReceita = async (req, res) => {
             { role: 'user', content: mensagemAtual }
         ];
 
-        const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
+        let respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // Salva no banco de dados
+        // --- TRAVA DE SEGURANÇA FINAL ---
+        // Se for VIP, removemos qualquer erro da IA que mencione bloqueio
+        if (isVip) {
+            respostaIA = String(respostaIA)
+                .replace(/\[CONTEÚDO BLOQUEADO\]/gi, "")
+                .replace(/Para visualizar o restante do seu plano.*/gi, "")
+                .replace(/clique no BOTÃO LARANJA.*/gi, "")
+                .trim();
+        }
+
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: String(respostaIA) });
         
-        // Atualização automática de peso se detectado na mensagem
         const encontrouPeso = mensagemAtual.match(/(\d+)\s*kg/i);
         if (encontrouPeso) user.peso = encontrouPeso[1];
 
@@ -123,13 +127,13 @@ export const perguntaReceita = async (req, res) => {
     }
 };
 
-// --- FUNÇÃO 3: TORNAR VIP ---
+// --- FUNÇÃO 3: TORNAR VIP (ATUALIZADA PARA CAMPO 'PAGO') ---
 export const tornarVip = async (req, res) => {
     try {
         const { whatsapp } = req.body;
         const user = await Usuario.findOneAndUpdate(
             { whatsapp: String(whatsapp).trim() },
-            { planStatus: 'vip' },
+            { pago: true }, // Agora atualiza o campo certo
             { new: true }
         );
         if (!user) return res.status(404).json({ erro: "Usuário não encontrado" });
