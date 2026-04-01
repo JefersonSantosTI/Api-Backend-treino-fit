@@ -1,5 +1,5 @@
-import Usuario from "./Usuario.js";import { obterRespostaReceitas } from "../services/openai.service.js";
-
+import Usuario from "./Usuario.js"; 
+import obterRespostaReceitas from "../services/openai.service.js"; // REMOVI AS CHAVES AQUI
 // 1. CHAT E PERGUNTA
 export const perguntaReceita = async (req, res) => {
     try {
