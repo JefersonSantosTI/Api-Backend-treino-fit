@@ -1,7 +1,7 @@
-import { Usuario } from "../controllers/Usuario.js"; // Verifique se o caminho do model está correto
-import { obterRespostaReceitas } from "../services/openai.service.js"; // Ou seu serviço de IA
+import Usuario from "../models/Usuario.js"; // IMPORTANTE: Sem chaves { }
+import { obterRespostaReceitas } from "../services/openai.service.js";
 
-// 1. CHAT E PERGUNTA (Já corrigido com perfilExtraido)
+// 1. CHAT E PERGUNTA
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw, perfilExtraido } = req.body;
@@ -17,18 +17,23 @@ export const perguntaReceita = async (req, res) => {
             user = await Usuario.create({ whatsapp, nome: "Guerreiro(a)", pago: false });
         }
 
-        // Se o front enviou dados minerados, salva no banco agora
+        // SALVAMENTO CORRETO NOS DADOS BIOMÉTRICOS
         if (perfilExtraido) {
+            if (!user.dadosBiometricos) user.dadosBiometricos = {};
+            
             if (perfilExtraido.nome) user.nome = perfilExtraido.nome;
-            if (perfilExtraido.peso) user.peso = String(perfilExtraido.peso).replace(',', '.');
-            if (perfilExtraido.altura) user.altura = String(perfilExtraido.altura).replace(',', '.');
+            if (perfilExtraido.peso) {
+                user.dadosBiometricos.peso = Number(String(perfilExtraido.peso).replace(',', '.'));
+            }
+            if (perfilExtraido.altura) {
+                user.dadosBiometricos.altura = Number(String(perfilExtraido.altura).replace(',', '.'));
+            }
         }
 
         const isVip = user.pago === true || user.pago === "true";
         
-        // Aqui deve entrar sua lógica de montar mensagensParaEnviar para a IA
         const mensagensParaEnviar = [
-            { role: "system", content: "Você é um nutricionista focado em treinos." },
+            { role: "system", content: "Você é um nutricionista esportivo de alta performance." },
             ...user.historico.slice(-6).map(h => ({ role: h.role, content: h.content })),
             { role: "user", content: mensagemAtual }
         ];
@@ -45,73 +50,54 @@ export const perguntaReceita = async (req, res) => {
             isTrial: !isVip,
             perfilAtualizado: { 
                 nome: user.nome, 
-                peso: String(user.peso || ""), 
-                altura: String(user.altura || "") 
+                peso: user.dadosBiometricos?.peso || "", 
+                altura: user.dadosBiometricos?.altura || "" 
             }
         });
 
     } catch (err) {
-        console.error("ERRO NO CONTROLLER PERGUNTA:", err);
+        console.error("ERRO NO CONTROLLER:", err);
         res.status(500).json({ erro: "Erro interno" });
     }
 };
 
-// 2. BUSCAR DADOS DO USUÁRIO (A que você acabou de adicionar)
+// 2. BUSCAR DADOS DO USUÁRIO
 export const obterDadosUsuario = async (req, res) => {
     try {
         const { whatsapp } = req.params;
         const user = await Usuario.findOne({ whatsapp });
-
-        if (!user) {
-            return res.status(404).json({ erro: "Usuário não encontrado" });
-        }
+        if (!user) return res.status(404).json({ erro: "Não encontrado" });
 
         res.json({
             nome: user.nome,
-            peso: user.peso,
-            altura: user.altura,
+            peso: user.dadosBiometricos?.peso,
+            altura: user.dadosBiometricos?.altura,
             pago: user.pago,
             historico: user.historico
         });
     } catch (err) {
-        console.error("Erro ao obter dados:", err);
-        res.status(500).json({ erro: "Erro interno no servidor" });
+        res.status(500).json({ erro: "Erro ao obter dados" });
     }
 };
 
-// 3. BUSCAR HISTÓRICO (Faltava esta exportação)
+// 3. BUSCAR HISTÓRICO
 export const obterHistorico = async (req, res) => {
     try {
         const { whatsapp } = req.params;
         const user = await Usuario.findOne({ whatsapp });
-        
-        if (!user) return res.json([]);
-        
-        // Formata para o padrão que o front espera
-        const historico = user.historico.map(msg => ({
-            role: msg.role,
-            content: msg.content
-        }));
-
-        res.json(historico);
+        res.json(user ? user.historico : []);
     } catch (err) {
-        console.error("Erro histórico:", err);
-        res.status(500).json({ erro: "Erro ao buscar histórico" });
+        res.status(500).json({ erro: "Erro histórico" });
     }
 };
 
-// 4. TORNAR VIP (Faltava esta exportação)
+// 4. TORNAR VIP
 export const tornarVip = async (req, res) => {
     try {
         const { whatsapp } = req.body;
-        const user = await Usuario.findOneAndUpdate(
-            { whatsapp }, 
-            { pago: true }, 
-            { new: true }
-        );
-        res.json({ sucesso: true, user });
+        await Usuario.findOneAndUpdate({ whatsapp }, { pago: true });
+        res.json({ sucesso: true });
     } catch (err) {
-        console.error("Erro VIP:", err);
-        res.status(500).json({ erro: "Erro ao atualizar para VIP" });
+        res.status(500).json({ erro: "Erro VIP" });
     }
 };

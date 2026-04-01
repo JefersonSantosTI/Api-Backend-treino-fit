@@ -1,4 +1,3 @@
-
 import mongoose from 'mongoose';
 
 const UsuarioSchema = new mongoose.Schema({
@@ -14,7 +13,7 @@ const UsuarioSchema = new mongoose.Schema({
     pago: { type: Boolean, default: false },
     historico: [
         {
-            role: String, // 'user' ou 'assistant'
+            role: String,
             content: String,
             timestamp: { type: Date, default: Date.now }
         }
