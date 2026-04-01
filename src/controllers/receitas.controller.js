@@ -1,4 +1,4 @@
-import { Usuario } from "../models/Usuario.js"; // Verifique se o caminho do model está correto
+import { Usuario } from "../controllers/Usuario.js"; // Verifique se o caminho do model está correto
 import { obterRespostaReceitas } from "../services/openai.service.js"; // Ou seu serviço de IA
 
 // 1. CHAT E PERGUNTA (Já corrigido com perfilExtraido)
