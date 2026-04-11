@@ -20,4 +20,5 @@ const UsuarioSchema = new mongoose.Schema({
     ]
 });
 
-export default mongoose.model('Usuario', UsuarioSchema);
+export default mongoose.model('Usuario', usuarioSchema, 'usuários'); 
+// O terceiro parâmetro força o Mongoose a usar o nome exato da sua coleção no Atlas
