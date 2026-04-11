@@ -1,8 +1,12 @@
 import mongoose from 'mongoose';
 
-const UsuarioSchema = new mongoose.Schema({
-    whatsapp: { type: String, unique: true, required: true },
+const usuarioSchema = new mongoose.Schema({
+    // Ajustado para 'WhatsApp' com W maiúsculo para bater com seu print do MongoDB
+    WhatsApp: { type: String, unique: true, required: true },
     nome: String,
+    pago: { type: Boolean, default: false },
+    email: String,
+    expiraEm: Date,
     dadosBiometricos: {
         peso: Number,
         altura: Number,
@@ -10,7 +14,6 @@ const UsuarioSchema = new mongoose.Schema({
         genero: String
     },
     planoEscolhido: String,
-    pago: { type: Boolean, default: false },
     historico: [
         {
             role: String,
@@ -20,5 +23,5 @@ const UsuarioSchema = new mongoose.Schema({
     ]
 });
 
-export default mongoose.model('Usuario', usuarioSchema, 'usuários'); 
-// O terceiro parâmetro força o Mongoose a usar o nome exato da sua coleção no Atlas
+// O terceiro parâmetro 'usuários' garante que o Mongoose use a coleção com acento
+export default mongoose.model('Usuario', usuarioSchema, 'usuários');
