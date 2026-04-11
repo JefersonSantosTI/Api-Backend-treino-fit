@@ -1,5 +1,6 @@
 import Usuario from "./Usuario.js"; 
-import obterRespostaReceitas from "../services/openai.service.js"; // REMOVI AS CHAVES AQUI
+import obterRespostaReceitas from "../services/openai.service.js";
+
 // 1. CHAT E PERGUNTA
 export const perguntaReceita = async (req, res) => {
     try {
@@ -11,12 +12,15 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "Dados obrigatórios faltando" });
         }
 
-        let user = await Usuario.findOne({ whatsapp });
+        // AJUSTADO: Busca usando 'WhatsApp' (Maiúsculo)
+        let user = await Usuario.findOne({ WhatsApp: whatsapp });
+        
         if (!user) {
-            user = await Usuario.create({ whatsapp, nome: "Guerreiro(a)", pago: false });
+            // AJUSTADO: Criação usando 'WhatsApp' (Maiúsculo)
+            user = await Usuario.create({ WhatsApp: whatsapp, nome: "Guerreiro(a)", pago: false });
         }
 
-        // SALVAMENTO CORRETO NOS DADOS BIOMÉTRICOS
+        // SALVAMENTO NOS DADOS BIOMÉTRICOS
         if (perfilExtraido) {
             if (!user.dadosBiometricos) user.dadosBiometricos = {};
             
@@ -42,6 +46,10 @@ export const perguntaReceita = async (req, res) => {
 
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: respostaFormatada });
+        
+        // Garante que o Mongoose marque as alterações para salvar
+        user.markModified('historico');
+        user.markModified('dadosBiometricos');
         await user.save();
 
         res.json({ 
@@ -56,7 +64,7 @@ export const perguntaReceita = async (req, res) => {
 
     } catch (err) {
         console.error("ERRO NO CONTROLLER:", err);
-        res.status(500).json({ erro: "Erro interno" });
+        res.status(500).json({ erro: "Erro interno: " + err.message });
     }
 };
 
@@ -64,7 +72,8 @@ export const perguntaReceita = async (req, res) => {
 export const obterDadosUsuario = async (req, res) => {
     try {
         const { whatsapp } = req.params;
-        const user = await Usuario.findOne({ whatsapp });
+        // AJUSTADO: Busca usando 'WhatsApp'
+        const user = await Usuario.findOne({ WhatsApp: whatsapp });
         if (!user) return res.status(404).json({ erro: "Não encontrado" });
 
         res.json({
@@ -83,7 +92,8 @@ export const obterDadosUsuario = async (req, res) => {
 export const obterHistorico = async (req, res) => {
     try {
         const { whatsapp } = req.params;
-        const user = await Usuario.findOne({ whatsapp });
+        // AJUSTADO: Busca usando 'WhatsApp'
+        const user = await Usuario.findOne({ WhatsApp: whatsapp });
         res.json(user ? user.historico : []);
     } catch (err) {
         res.status(500).json({ erro: "Erro histórico" });
@@ -94,7 +104,8 @@ export const obterHistorico = async (req, res) => {
 export const tornarVip = async (req, res) => {
     try {
         const { whatsapp } = req.body;
-        await Usuario.findOneAndUpdate({ whatsapp }, { pago: true });
+        // AJUSTADO: Busca usando 'WhatsApp'
+        await Usuario.findOneAndUpdate({ WhatsApp: whatsapp }, { pago: true });
         res.json({ sucesso: true });
     } catch (err) {
         res.status(500).json({ erro: "Erro VIP" });
