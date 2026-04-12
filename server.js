@@ -16,46 +16,55 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("❌ Erro MongoDB:", err));
 
 // --- ROTA 1: WEBHOOK KIWIFY (ATIVAÇÃO AUTOMÁTICA) ---
-// --- ROTA 1: WEBHOOK KIWIFY (ATIVAÇÃO AUTOMÁTICA) ---
+
 app.post("/webhook-kiwify", async (req, res) => {
-    // A Kiwify envia 'order_status', mas o campo principal costuma ser 'status'
-    const { status, order_status, customer } = req.body;
-    const situacao = status || order_status;
+    try {
+        const data = req.body;
+        console.log("📦 Dados recebidos:", JSON.stringify(data));
 
-    if (situacao === "paid" || situacao === "approved") {
-        try {
-            const whatsappCliente = customer.mobile ? customer.mobile.replace(/\D/g, "") : null;
+        // Pega o status, não importa se está em 'status' ou 'order_status'
+        const statusAtual = data?.status || data?.order_status;
+
+        // Só prossegue se for aprovado/pago
+        if (statusAtual === "approved" || statusAtual === "paid") {
             
-            if (!whatsappCliente) {
-                return res.status(200).send("Sem telefone");
+            // O '?.mobile' evita o erro caso o cliente não exista no JSON
+            const mobileRaw = data?.customer?.mobile;
+
+            if (mobileRaw) {
+                const whatsappCliente = mobileRaw.replace(/\D/g, "");
+                
+                const dataExpiracao = new Date();
+                dataExpiracao.setFullYear(dataExpiracao.getFullYear() + 1);
+
+                await mongoose.connection.collection('usuários').updateOne(
+                    { WhatsApp: whatsappCliente }, 
+                    { 
+                        $set: { 
+                            pago: true, 
+                            expiraEm: dataExpiracao,
+                            email: data?.customer?.email || "",
+                            nome: data?.customer?.name || "Guerreiro",
+                            dataPagamento: new Date()
+                        } 
+                    },
+                    { upsert: true }
+                );
+
+                console.log(`✅ VIP Ativado para: ${whatsappCliente}`);
+            } else {
+                console.log("⚠️ Webhook sem número de telefone.");
             }
-
-            const dataExpiracao = new Date();
-            dataExpiracao.setFullYear(dataExpiracao.getFullYear() + 1);
-
-            // O segredo está no { upsert: true }: se o usuário não existir, ele CRIA na hora
-            await mongoose.connection.collection('usuários').updateOne(
-                { WhatsApp: whatsappCliente }, 
-                { 
-                    $set: { 
-                        pago: true, 
-                        expiraEm: dataExpiracao,
-                        email: customer.email,
-                        nome: customer.name, // Já salva o nome que ele usou no cartão
-                        dataPagamento: new Date()
-                    } 
-                },
-                { upsert: true } 
-            );
-
-            console.log(`✅ VIP Ativado/Criado via WhatsApp: ${whatsappCliente}`);
-        } catch (err) {
-            console.error("❌ Erro no Webhook:", err);
         }
-    }
-    res.status(200).send("OK");
-});
 
+        // SEMPRE responde 200 para o Kiwify
+        res.status(200).send("Recebido");
+
+    } catch (err) {
+        console.error("❌ Erro interno no Webhook:", err.message);
+        res.status(200).send("Erro tratado");
+    }
+});
 // --- ROTA 2: VALIDAR CÓDIGO (ENVIO MANUAL) ---
 app.post("/api/usuarios/ativar-vip", async (req, res) => {
     const { whatsapp, codigo } = req.body;
