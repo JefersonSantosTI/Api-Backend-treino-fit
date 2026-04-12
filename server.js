@@ -16,39 +16,39 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("❌ Erro MongoDB:", err));
 
 // --- ROTA 1: WEBHOOK KIWIFY (ATIVAÇÃO AUTOMÁTICA) ---
+// --- ROTA 1: WEBHOOK KIWIFY (ATIVAÇÃO AUTOMÁTICA) ---
 app.post("/webhook-kiwify", async (req, res) => {
-    const { order_status, customer } = req.body;
+    // A Kiwify envia 'order_status', mas o campo principal costuma ser 'status'
+    const { status, order_status, customer } = req.body;
+    const situacao = status || order_status;
 
-    if (order_status === "paid" || order_status === "approved") {
+    if (situacao === "paid" || situacao === "approved") {
         try {
-            // A Kiwify envia o telefone no campo 'mobile'. Vamos limpar para deixar só números.
             const whatsappCliente = customer.mobile ? customer.mobile.replace(/\D/g, "") : null;
             
             if (!whatsappCliente) {
-                console.log("⚠️ Venda aprovada, mas o cliente não forneceu telefone.");
                 return res.status(200).send("Sem telefone");
             }
 
             const dataExpiracao = new Date();
             dataExpiracao.setFullYear(dataExpiracao.getFullYear() + 1);
 
-            // ATENÇÃO: Usei 'usuários' com acento conforme seu print do MongoDB
-            const resultado = await mongoose.connection.collection('usuários').findOneAndUpdate(
-                { WhatsApp: whatsappCliente }, // Busca pela chave 'WhatsApp' (W maiúsculo como no seu print)
+            // O segredo está no { upsert: true }: se o usuário não existir, ele CRIA na hora
+            await mongoose.connection.collection('usuários').updateOne(
+                { WhatsApp: whatsappCliente }, 
                 { 
                     $set: { 
                         pago: true, 
                         expiraEm: dataExpiracao,
-                        email: customer.email // Aproveitamos para salvar o e-mail dele agora
+                        email: customer.email,
+                        nome: customer.name, // Já salva o nome que ele usou no cartão
+                        dataPagamento: new Date()
                     } 
-                }
+                },
+                { upsert: true } 
             );
 
-            if (resultado) {
-                console.log(`✅ VIP Ativado via WhatsApp: ${whatsappCliente}`);
-            } else {
-                console.log(`⚠️ WhatsApp ${whatsappCliente} não encontrado no banco.`);
-            }
+            console.log(`✅ VIP Ativado/Criado via WhatsApp: ${whatsappCliente}`);
         } catch (err) {
             console.error("❌ Erro no Webhook:", err);
         }
