@@ -4,14 +4,18 @@ import obterRespostaReceitas from "../services/openai.service.js";
 // 1. CHAT E PERGUNTA
 export const perguntaReceita = async (req, res) => {
     try {
-        const { whatsapp: whatsappRaw, mensagemAtual: mensagemRaw, perfilExtraido } = req.body;
+        // Ajuste para aceitar tanto 'mensagemAtual' (do chat) quanto 'objetivo' (do botão de treino)
+        const { whatsapp: whatsappRaw, mensagemAtual, objetivo, perfilExtraido } = req.body;
+        
         const whatsapp = String(whatsappRaw || "").trim();
-        const mensagemAtual = String(mensagemRaw || "").trim();
+        // Se vier do botão de treino, usamos o 'objetivo' como a mensagem para a IA
+        const mensagemFinal = mensagemAtual || objetivo; 
 
-        if (!whatsapp || !mensagemAtual) {
+        if (!whatsapp || !mensagemFinal) {
             return res.status(400).json({ erro: "Dados obrigatórios faltando" });
         }
 
+        // ... resto do seu código igual (busca usuário, salva biometria, chama OpenAI)
         // Busca ou cria o usuário
         let user = await Usuario.findOne({ WhatsApp: whatsapp });
         

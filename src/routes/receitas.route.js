@@ -18,4 +18,21 @@ router.get('/receitas/historico/:whatsapp', obterHistorico);
 router.get('/usuarios/:whatsapp', obterDadosUsuario);
 router.post('/usuarios/ativar-vip', tornarVip); // Nome batendo com o seu App.js
 
+// ... suas outras rotas
+router.get('/usuarios/:whatsapp', obterDadosUsuario);
+router.post('/usuarios/ativar-vip', tornarVip);
+
+// ADICIONE ESTA LINHA ABAIXO PARA MATAR O ERRO 404
+router.post('/usuarios/gerar-treino-ia', obterDadosUsuario);
+
+// ... suas outras rotas
+
+// 2. Rotas de Usuário
+router.get('/usuarios/:whatsapp', obterDadosUsuario);
+router.post('/usuarios/ativar-vip', tornarVip);
+
+// --- ADICIONE ESTAS DUAS LINHAS ABAIXO ---
+router.post('/usuarios/atualizar-perfil', perguntaReceita); // Reutiliza a lógica de salvar perfil
+router.post('/usuarios/gerar-treino-ia', perguntaReceita);   // Reutiliza a lógica de gerar treino via IA
+
 export default router;
