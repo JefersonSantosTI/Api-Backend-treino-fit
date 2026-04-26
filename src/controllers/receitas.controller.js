@@ -133,34 +133,30 @@ export const obterDadosUsuario = async (req, res) => {
       const { whatsapp } = req.params;
       const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
   
-      // 1. Verifica se a conexão com o banco existe
-      if (!mongoose.connection || !mongoose.connection.db) {
-        console.error("❌ Conexão com MongoDB não estabelecida");
-        return res.status(500).json({ erro: "Erro de conexão com o banco" });
-      }
-  
-      // 2. Busca na coleção 'usuários'
-      const user = await mongoose.connection.collection('usuários').findOne({ WhatsApp: whatsappLimpo });
+      // 1. Conectamos especificamente ao banco nutricionista_db
+      const db = mongoose.connection.useDb('nutricionista_db');
       
-      // Se não encontrar, retornamos 404 para o Front saber que deve ir para o Onboarding
-      if (!user) {
-        console.log(`ℹ️ Usuário ${whatsappLimpo} não encontrado no banco.`);
-        return res.status(404).json({ mensagem: "Usuário novo" });
+      // 2. Buscamos na coleção 'usuários' (COM ACENTO, como no seu print)
+      const usuario = await db.collection('usuários').findOne({ WhatsApp: whatsappLimpo });
+  
+      if (!usuario) {
+        return res.status(404).json({ mensagem: "Usuário não encontrado" });
       }
   
-      // 3. Retorna os dados com segurança (valores padrão caso campos estejam nulos)
+      // 3. Retornamos os dados mapeando os campos do seu banco
       res.json({
-        nome: user.nome || "Guerreiro(a)",
-        peso: user.peso || 0,
-        altura: user.altura || 0,
-        meta: user.meta || "Emagrecimento",
-        pago: user.pago || false,
-        treinoIA: user.treinoCustomizado ? user.treinoCustomizado : null
+        nome: usuario.nome || "Guerreiro",
+        peso: usuario.peso || 0,
+        altura: usuario.altura || 0,
+        meta: usuario.meta || "Emagrecimento",
+        pago: usuario.pago || false,
+        // No seu print o campo é 'treinoPersonalizado' e não 'treinoIA'
+        treinoIA: usuario.treinoPersonalizado ? JSON.parse(usuario.treinoPersonalizado) : null
       });
   
     } catch (err) {
-      console.error("❌ ERRO CRÍTICO NO CONTROLLER:", err.message);
-      res.status(500).json({ erro: "Erro interno no servidor ao buscar dados" });
+      console.error("❌ Erro no Controller:", err);
+      res.status(500).json({ erro: "Erro interno" });
     }
   };
 

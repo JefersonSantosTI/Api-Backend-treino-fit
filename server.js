@@ -101,34 +101,31 @@ app.post("/api/usuarios/ativar-vip", async (req, res) => {
 // --- ROTA PARA ATUALIZAR IMC/PERFIL (ONBOARDING) ---
 // --- ROTA PARA ATUALIZAR PERFIL COMPLETO (ONBOARDING) ---
 app.post("/api/usuarios/atualizar", async (req, res) => {
-    const { whatsapp, nome, peso, altura, meta } = req.body;
-    const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
-
     try {
-        await mongoose.connection.collection('usuários').updateOne(
+        const { whatsapp, nome, peso, altura, meta } = req.body;
+        const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
+        const db = mongoose.connection.useDb('nutricionista_db');
+
+        await db.collection('usuários').updateOne(
             { WhatsApp: whatsappLimpo },
             { 
                 $set: { 
-                    nome: nome || "Guerreiro(a)",
+                    nome: nome,
                     peso: Number(peso), 
                     altura: Number(altura), 
                     meta: meta,
-                    dadosBiometricos: {
-                        peso: Number(peso),
-                        altura: Number(altura)
-                    }
+                    WhatsApp: whatsappLimpo // Garante que o campo chave exista
                 } 
             },
             { upsert: true }
         );
 
-        res.status(200).json({ mensagem: "Perfil atualizado com sucesso!" });
+        res.status(200).json({ mensagem: "Sucesso" });
     } catch (err) {
-        console.error("Erro ao atualizar perfil:", err);
-        res.status(500).json({ mensagem: "Erro interno ao salvar dados." });
+        console.error("Erro ao salvar:", err);
+        res.status(500).json({ erro: "Erro ao salvar" });
     }
 });
-
 app.use("/api", receitasRoutes);
 
 app.get("/", (req, res) => {
