@@ -130,24 +130,39 @@ export const gerarTreinoIA = async (req, res) => {
 // --- 3. DADOS DO USUÁRIO ---
 export const obterDadosUsuario = async (req, res) => {
     try {
-        const { whatsapp } = req.params;
-        // Busca na coleção 'usuários' (conforme seu server.js)
-        const user = await mongoose.connection.collection('usuários').findOne({ WhatsApp: whatsapp });
-        
-        if (!user) return res.status(404).json({ erro: "Usuário não encontrado" });
-
-        res.json({
-            nome: user.nome || "Guerreiro(a)",
-            peso: user.peso || 0,
-            altura: user.altura || 0,
-            meta: user.meta || "Emagrecimento",
-            pago: user.pago || false,
-            treinoIA: user.treinoCustomizado ? JSON.parse(user.treinoCustomizado) : null
-        });
+      const { whatsapp } = req.params;
+      const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
+  
+      // 1. Verifica se a conexão com o banco existe
+      if (!mongoose.connection || !mongoose.connection.db) {
+        console.error("❌ Conexão com MongoDB não estabelecida");
+        return res.status(500).json({ erro: "Erro de conexão com o banco" });
+      }
+  
+      // 2. Busca na coleção 'usuários'
+      const user = await mongoose.connection.collection('usuários').findOne({ WhatsApp: whatsappLimpo });
+      
+      // Se não encontrar, retornamos 404 para o Front saber que deve ir para o Onboarding
+      if (!user) {
+        console.log(`ℹ️ Usuário ${whatsappLimpo} não encontrado no banco.`);
+        return res.status(404).json({ mensagem: "Usuário novo" });
+      }
+  
+      // 3. Retorna os dados com segurança (valores padrão caso campos estejam nulos)
+      res.json({
+        nome: user.nome || "Guerreiro(a)",
+        peso: user.peso || 0,
+        altura: user.altura || 0,
+        meta: user.meta || "Emagrecimento",
+        pago: user.pago || false,
+        treinoIA: user.treinoCustomizado ? user.treinoCustomizado : null
+      });
+  
     } catch (err) {
-        res.status(500).json({ erro: "Erro ao obter perfil" });
+      console.error("❌ ERRO CRÍTICO NO CONTROLLER:", err.message);
+      res.status(500).json({ erro: "Erro interno no servidor ao buscar dados" });
     }
-};
+  };
 
 // --- 4. HISTÓRICO DE CHAT ---
 export const obterHistorico = async (req, res) => {
