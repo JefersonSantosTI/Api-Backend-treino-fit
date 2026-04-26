@@ -131,17 +131,18 @@ export const gerarTreinoIA = async (req, res) => {
 export const obterDadosUsuario = async (req, res) => {
     try {
         const { whatsapp } = req.params;
-        const user = await Usuario.findOne({ WhatsApp: whatsapp });
+        // Busca na coleção 'usuários' (conforme seu server.js)
+        const user = await mongoose.connection.collection('usuários').findOne({ WhatsApp: whatsapp });
         
         if (!user) return res.status(404).json({ erro: "Usuário não encontrado" });
 
         res.json({
-            nome: user.nome,
-            peso: user.dadosBiometricos?.peso,
-            altura: user.dadosBiometricos?.altura,
-            pago: user.pago,
-            treinoIA: user.treinoCustomizado ? JSON.parse(user.treinoCustomizado) : null, 
-            historico: user.historico
+            nome: user.nome || "Guerreiro(a)",
+            peso: user.peso || 0,
+            altura: user.altura || 0,
+            meta: user.meta || "Emagrecimento",
+            pago: user.pago || false,
+            treinoIA: user.treinoCustomizado ? JSON.parse(user.treinoCustomizado) : null
         });
     } catch (err) {
         res.status(500).json({ erro: "Erro ao obter perfil" });

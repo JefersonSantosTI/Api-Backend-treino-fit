@@ -99,29 +99,29 @@ app.post("/api/usuarios/ativar-vip", async (req, res) => {
 });
 
 // --- ROTA PARA ATUALIZAR IMC/PERFIL (ONBOARDING) ---
+// --- ROTA PARA ATUALIZAR PERFIL COMPLETO (ONBOARDING) ---
 app.post("/api/usuarios/atualizar", async (req, res) => {
-    const { whatsapp, peso, altura, meta } = req.body;
+    const { whatsapp, nome, peso, altura, meta } = req.body;
     const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
 
     try {
-        const resultado = await mongoose.connection.collection('usuários').updateOne(
+        await mongoose.connection.collection('usuários').updateOne(
             { WhatsApp: whatsappLimpo },
             { 
                 $set: { 
+                    nome: nome || "Guerreiro(a)",
                     peso: Number(peso), 
                     altura: Number(altura), 
                     meta: meta,
-                    // Criamos o campo de dados biometricos para o seu controller de receitas ler depois
                     dadosBiometricos: {
                         peso: Number(peso),
                         altura: Number(altura)
                     }
                 } 
             },
-            { upsert: true } // Se o usuário não existir, ele cria aqui
+            { upsert: true }
         );
 
-        console.log(`✅ Perfil atualizado: ${whatsappLimpo} | Peso: ${peso}kg`);
         res.status(200).json({ mensagem: "Perfil atualizado com sucesso!" });
     } catch (err) {
         console.error("Erro ao atualizar perfil:", err);
