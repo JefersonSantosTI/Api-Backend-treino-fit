@@ -128,37 +128,47 @@ export const gerarTreinoIA = async (req, res) => {
     }
 };
 // --- 3. DADOS DO USUÁRIO ---
+import mongoose from "mongoose";
+
 export const obterDadosUsuario = async (req, res) => {
-    try {
-      const { whatsapp } = req.params;
-      const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
-  
-      // 1. Conectamos especificamente ao banco nutricionista_db
-      const db = mongoose.connection.useDb('nutricionista_db');
-      
-      // 2. Buscamos na coleção 'usuários' (COM ACENTO, como no seu print)
-      const usuario = await db.collection('usuários').findOne({ WhatsApp: whatsappLimpo });
-  
-      if (!usuario) {
-        return res.status(404).json({ mensagem: "Usuário não encontrado" });
-      }
-  
-      // 3. Retornamos os dados mapeando os campos do seu banco
-      res.json({
-        nome: usuario.nome || "Guerreiro",
-        peso: usuario.peso || 0,
-        altura: usuario.altura || 0,
-        meta: usuario.meta || "Emagrecimento",
-        pago: usuario.pago || false,
-        // No seu print o campo é 'treinoPersonalizado' e não 'treinoIA'
-        treinoIA: usuario.treinoPersonalizado ? JSON.parse(usuario.treinoPersonalizado) : null
-      });
-  
-    } catch (err) {
-      console.error("❌ Erro no Controller:", err);
-      res.status(500).json({ erro: "Erro interno" });
+  try {
+    const { whatsapp } = req.params;
+    if (!whatsapp) return res.status(400).json({ erro: "WhatsApp ausente" });
+
+    const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
+
+    // Conecta ao banco correto e coleção com acento
+    const db = mongoose.connection.useDb('nutricionista_db');
+    const colecao = db.collection('usuários');
+
+    // BUSCA COM REGEX: Isso encontra o número mesmo se tiver espaços no banco
+    const usuario = await colecao.findOne({ 
+      WhatsApp: { $regex: whatsappLimpo } 
+    });
+
+    if (!usuario) {
+      return res.status(404).json({ mensagem: "Usuário novo" });
     }
-  };
+
+    // RESPOSTA SEGURA: Evita o erro 500 se algum campo estiver estranho
+    return res.status(200).json({
+      nome: usuario.nome || "Guerreiro",
+      peso: usuario.peso || 0,
+      altura: usuario.altura || 0,
+      meta: usuario.meta || "Emagrecimento",
+      pago: usuario.pago || false,
+      // Se treinoPersonalizado já for objeto, não usamos JSON.parse
+      treinoIA: typeof usuario.treinoPersonalizado === 'string' 
+                ? JSON.parse(usuario.treinoPersonalizado) 
+                : usuario.treinoPersonalizado
+    });
+
+  } catch (err) {
+    // Esse log vai aparecer no painel do Render para você!
+    console.error("❌ ERRO NO GET USUARIO:", err.message);
+    return res.status(500).json({ erro: "Erro interno no servidor" });
+  }
+};
 
 // --- 4. HISTÓRICO DE CHAT ---
 export const obterHistorico = async (req, res) => {
