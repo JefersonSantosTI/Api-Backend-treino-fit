@@ -66,6 +66,7 @@ export const perguntaReceita = async (req, res) => {
 };
 
 // --- 2. MENTOR DE TREINO IA (Lógica de JSON Puro para Cards) ---
+// --- 2. MENTOR DE TREINO IA (Alta Performance com Técnicas Avançadas) ---
 export const gerarTreinoIA = async (req, res) => {
     try {
         const { whatsapp, objetivo, perfil } = req.body;
@@ -74,27 +75,39 @@ export const gerarTreinoIA = async (req, res) => {
             return res.status(400).json({ erro: "WhatsApp e Objetivo são necessários." });
         }
 
-        // Prompt focado 100% em ser um Personal Trainer que gera dados para o Front-end
+        // Cálculos de segurança para a IA
+        const peso = parseFloat(perfil?.peso || 70);
+        const altura = parseFloat(perfil?.altura || 1.70);
+        const imc = (peso / (altura * altura)).toFixed(1);
+
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 { 
                     role: "system", 
-                    content: `Você é um Personal Trainer IA de alta performance. 
-                    Gere treinos técnicos baseados no objetivo e perfil do aluno.
-                    REGRA CRÍTICA: Responda APENAS um objeto JSON. Não escreva textos antes ou depois.
+                    content: `Você é o Head Coach Treino Fit. Sua missão é gerar treinos de elite em JSON.
                     
-                    FORMATO DO JSON:
+                    DIRETRIZES TÉCNICAS:
+                    - Objetivo HIPERTROFIA: Foco em Tensão Mecânica. Use: Pirâmide, Rest-Pause, Pico de Contração.
+                    - Objetivo EMAGRECIMENTO: Foco em Gasto Calórico. Use: Drop-sets, Bi-sets, Repetições Altas.
+                    - IMC DO ALUNO: ${imc}. (Se > 30, evite exercícios de alto impacto).
+                    
+                    REGRA DE NOMENCLATURA: Use nomes padrões e curtos (ex: Supino Reto, Leg Press 45, Rosca Direta) para compatibilidade com sistema de GIFs.
+                    
+                    FORMATO OBRIGATÓRIO (JSON PURO):
                     {
+                      "fase": "Nome da Fase (ex: Choque Metabólico)",
+                      "frase_coach": "Frase motivacional técnica",
                       "treino": [
-                        {"nome": "Nome do Exercício", "series": "3", "reps": "12", "obs": "Dica técnica curta"},
-                        {"nome": "Próximo Exercício", "series": "4", "reps": "10", "obs": "Dica de execução"}
-                      ]
+                        {"nome": "Nome do Exercício", "series": "4", "reps": "8-12", "tecnica": "Rest-pause", "obs": "3s na descida"},
+                        {"nome": "Próximo", "series": "3", "reps": "15", "tecnica": "Drop-set", "obs": "Até a falha"}
+                      ],
+                      "cardio": "Protocolo detalhado (ex: 15min HIIT na esteira)"
                     }` 
                 },
                 { 
                     role: "user", 
-                    content: `Gere um treino de ${objetivo}. Aluno: ${perfil?.peso || '70'}kg e ${perfil?.altura || '1.70'}m.` 
+                    content: `Gere um plano de ${objetivo} para um aluno com IMC ${imc}.` 
                 }
             ],
             response_format: { type: "json_object" }
@@ -102,19 +115,18 @@ export const gerarTreinoIA = async (req, res) => {
 
         const treinoData = JSON.parse(completion.choices[0].message.content);
 
-        // Salva o treino gerado no campo treinoCustomizado para persistência
+        // Salvando no banco de dados
         await Usuario.findOneAndUpdate(
             { WhatsApp: whatsapp },
-            { treinoCustomizado: JSON.stringify(treinoData.treino) }
+            { treinoCustomizado: JSON.stringify(treinoData) } // Salvamos o objeto completo (fase, frase, treino, cardio)
         );
 
         res.json(treinoData);
     } catch (err) {
         console.error("ERRO GERADOR TREINO:", err);
-        res.status(500).json({ erro: "Falha ao gerar treino técnico." });
+        res.status(500).json({ erro: "Falha ao gerar treino de elite." });
     }
 };
-
 // --- 3. DADOS DO USUÁRIO ---
 export const obterDadosUsuario = async (req, res) => {
     try {
