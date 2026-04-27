@@ -9,24 +9,20 @@ import {
 
 const router = express.Router();
 
-// --- 1. INTELIGÊNCIA NUTRICIONAL & CHAT ---
-// Rota para o Nutricionista/Receitas
+// O prefixo "/api" já vem do server.js, então aqui você define o resto:
+
+// 1. CHAT (URL final: /api/receitas/perguntar)
 router.post('/receitas/perguntar', perguntaReceita);
-// Histórico de conversas para manter o contexto
+
+// 2. HISTÓRICO (URL final: /api/receitas/historico/:whatsapp)
 router.get('/receitas/historico/:whatsapp', obterHistorico);
 
-// --- 2. GESTÃO DE USUÁRIO & PERFIL ---
-// Rota que o App.js usa para "pescar" os dados (Peso, Altura, IMC, Nome)
+// 3. DADOS (URL final: /api/usuarios/:whatsapp)
+// CUIDADO: Se você já definiu esta rota no server.js, apague uma das duas!
 router.get('/usuarios/:whatsapp', obterDadosUsuario);
-// Rota para upgrade de conta
-router.post('/usuarios/ativar-vip', tornarVip);
 
-// --- 3. MENTOR IA (TREINOS DE ALTA PERFORMANCE) ---
-/**
- * Rota: POST /usuarios/gerar-treino-ia
- * Objetivo: Recebe Objetivo + Perfil Completo (IMC/TMB) 
- * para gerar o JSON de treino com técnicas avançadas.
- */
+// 4. VIP e TREINO
+router.post('/usuarios/ativar-vip', tornarVip);
 router.post('/usuarios/gerar-treino-ia', gerarTreinoIA); 
 
 export default router;
