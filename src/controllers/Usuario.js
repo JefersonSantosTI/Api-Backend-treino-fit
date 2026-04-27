@@ -1,20 +1,26 @@
 import mongoose from 'mongoose';
 
 const usuarioSchema = new mongoose.Schema({
+    // Identificador único
     WhatsApp: { type: String, unique: true, required: true },
-    nome: String,
+    
+    // Dados de Perfil (Soltos na raiz para facilitar a busca do App.js)
+    nome: { type: String, default: "Guerreiro(a)" },
     pago: { type: Boolean, default: false },
-    email: String,
+    email: { type: String, default: "" },
     expiraEm: Date,
-    // ADICIONE ESTA LINHA ABAIXO
+    meta: { type: String, default: "Emagrecimento" },
+    
+    // Biometria (Campos diretos)
+    peso: { type: Number, default: 0 },
+    altura: { type: Number, default: 0 },
+    idade: { type: Number, default: 0 },
+    genero: { type: String, default: "" },
+    
+    // Treinos e IA
     treinoCustomizado: { type: String, default: "" }, 
-    dadosBiometricos: {
-        peso: Number,
-        altura: Number,
-        idade: Number,
-        genero: String
-    },
-    // ... resto do código igual
+    treinoIA: { type: String, default: "" },
+    
     planoEscolhido: String,
     historico: [
         {
@@ -23,7 +29,7 @@ const usuarioSchema = new mongoose.Schema({
             timestamp: { type: Date, default: Date.now }
         }
     ]
-});
+}, { timestamps: true });
 
-// O terceiro parâmetro 'usuários' garante que o Mongoose use a coleção com acento
+// Exporta o modelo garantindo o uso da coleção 'usuários' com acento
 export default mongoose.model('Usuario', usuarioSchema, 'usuários');

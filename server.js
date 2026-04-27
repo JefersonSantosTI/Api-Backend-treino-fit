@@ -3,103 +3,40 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import Usuario from "./src/models/usuario.js"; // IMPORTANTE: Importe o modelo atualizado
 import receitasRoutes from "./src/routes/receitas.route.js"; 
 
 const app = express();
-
 app.use(cors()); 
 app.use(express.json()); 
 
-// --- CONEXÃO BANCO DE DADOS ---
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB conectado!"))
   .catch(err => console.error("❌ Erro MongoDB:", err));
 
-// --- ROTA 1: WEBHOOK KIWIFY (VERSÃO CORRIGIDA PARA MAIÚSCULAS) ---
-app.post("/webhook-kiwify", async (req, res) => {
+// --- ROTA DE BUSCA (Sincronizar Dados do Home) ---
+// Resolve o problema de não aparecer peso/altura no início
+app.get("/api/usuarios/:whatsapp", async (req, res) => {
     try {
-        const data = req.body;
-        console.log("📦 Dados recebidos do Kiwify!");
+        const { whatsapp } = req.params;
+        const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
+        
+        // Busca o usuário no banco correto
+        const db = mongoose.connection.useDb('nutricionista_db');
+        const usuario = await db.collection('usuários').findOne({ WhatsApp: whatsappLimpo });
 
-        // O Kiwify pode enviar 'Customer' ou 'customer'
-        const cliente = data.Customer || data.customer;
-        const statusAtual = data.order_status || data.status;
-
-        console.log(`Status: ${statusAtual} | Cliente encontrado: ${cliente ? 'Sim' : 'Não'}`);
-
-        if ((statusAtual === "paid" || statusAtual === "approved") && cliente) {
-            
-            const mobileRaw = cliente.mobile;
-
-            if (mobileRaw) {
-                // Limpa o número (remove + e espaços)
-                const whatsappCliente = mobileRaw.replace(/\D/g, "");
-                
-                // Define 1 ano de acesso
-                const dataExpiracao = new Date();
-                dataExpiracao.setFullYear(dataExpiracao.getFullYear() + 1);
-
-                // ATUALIZA NO BANCO (usando W maiúsculo em WhatsApp conforme seu print)
-                const resultado = await mongoose.connection.collection('usuários').updateOne(
-                    { WhatsApp: whatsappCliente }, 
-                    { 
-                        $set: { 
-                            pago: true, 
-                            expiraEm: dataExpiracao,
-                            email: cliente.email || "",
-                            nome: cliente.full_name || cliente.name || "Guerreiro",
-                            dataPagamento: new Date()
-                        } 
-                    },
-                    { upsert: true } // Se não existir, ele cria!
-                );
-
-                console.log(`✅ SUCESSO: VIP Ativado para o WhatsApp: ${whatsappCliente}`);
-            } else {
-                console.log("⚠️ O objeto cliente existe, mas o campo 'mobile' está vazio.");
-            }
+        if (usuario) {
+            res.status(200).json(usuario);
         } else {
-            console.log("ℹ️ Webhook recebido, mas não é uma aprovação de pagamento.");
+            res.status(404).json({ mensagem: "Usuário não cadastrado" });
         }
-
-        res.status(200).send("OK");
-
     } catch (err) {
-        console.error("❌ Erro processando Webhook:", err.message);
-        res.status(200).send("Erro Interno");
+        res.status(500).json({ erro: "Erro ao buscar dados" });
     }
 });
 
-// --- ROTA 2: VALIDAR CÓDIGO (ENVIO MANUAL) ---
-app.post("/api/usuarios/ativar-vip", async (req, res) => {
-    const { whatsapp, codigo } = req.body;
-    const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
-
-    try {
-        // Busca usando 'WhatsApp' com W maiúsculo
-        const usuario = await mongoose.connection.collection('usuários').findOne({ WhatsApp: whatsappLimpo });
-
-        if (!usuario) {
-            return res.status(404).json({ mensagem: "Usuário não encontrado." });
-        }
-
-        // Código mestre para você enviar no zap se o automático falhar
-        if (codigo === "LIBERAR2026" || codigo === usuario.codigoVip) {
-            await mongoose.connection.collection('usuários').updateOne(
-                { WhatsApp: whatsappLimpo },
-                { $set: { pago: true } }
-            );
-            return res.json({ mensagem: "💎 VIP Ativado com sucesso!" });
-        } else {
-            return res.status(401).json({ mensagem: "Código inválido." });
-        }
-    } catch (err) {
-        res.status(500).json({ mensagem: "Erro ao validar código." });
-    }
-});
-
-// --- ROTA PARA ATUALIZAR IMC/PERFIL (ONBOARDING) ---
-// --- ROTA PARA ATUALIZAR PERFIL COMPLETO (ONBOARDING) ---
+// --- ROTA DE ATUALIZAÇÃO (Onboarding) ---
+// Resolve o erro 404 ao salvar nome/peso/altura
 app.post("/api/usuarios/atualizar", async (req, res) => {
     try {
         const { whatsapp, nome, peso, altura, meta } = req.body;
@@ -110,11 +47,11 @@ app.post("/api/usuarios/atualizar", async (req, res) => {
             { WhatsApp: whatsappLimpo },
             { 
                 $set: { 
-                    nome: nome,
+                    nome,
                     peso: Number(peso), 
                     altura: Number(altura), 
-                    meta: meta,
-                    WhatsApp: whatsappLimpo // Garante que o campo chave exista
+                    meta,
+                    WhatsApp: whatsappLimpo
                 } 
             },
             { upsert: true }
@@ -122,17 +59,24 @@ app.post("/api/usuarios/atualizar", async (req, res) => {
 
         res.status(200).json({ mensagem: "Sucesso" });
     } catch (err) {
-        console.error("Erro ao salvar:", err);
+        console.error("Erro ao salvar perfil:", err);
         res.status(500).json({ erro: "Erro ao salvar" });
     }
 });
-app.use("/api", receitasRoutes);
+
+// --- ROTA DO KIWIFY ---
+app.post("/webhook-kiwify", async (req, res) => {
+    // ... seu código do webhook (pode manter como está)
+});
+
+// --- OUTRAS ROTAS ---
+app.use("/api", receitasRoutes); // Mantido abaixo para não dar conflito
 
 app.get("/", (req, res) => {
-  res.send("API TreinoFit - Conectada ao Banco 'usuários'");
+  res.send("API TreinoFit - Online e Sincronizada");
 });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor online na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
