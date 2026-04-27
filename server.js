@@ -3,7 +3,7 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
-import Usuario from "./src/models/usuario.js"; // IMPORTANTE: Importe o modelo atualizado
+import Usuario from "./src/controllers/Usuario.js";
 import receitasRoutes from "./src/routes/receitas.route.js"; 
 
 const app = express();
