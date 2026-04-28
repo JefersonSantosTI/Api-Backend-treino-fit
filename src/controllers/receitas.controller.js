@@ -8,19 +8,26 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual, perfilExtraido } = req.body;
-        const whatsapp = String(whatsappRaw || "").trim().replace(/\D/g, "");
+        // Limpa o número para garantir que bata com o banco "61991268229"
+        const whatsLimpo = String(whatsappRaw || "").trim().replace(/\D/g, "");
 
-        if (!whatsapp || !mensagemAtual) {
+        if (!whatsLimpo || !mensagemAtual) {
             return res.status(400).json({ erro: "Dados obrigatórios faltando" });
         }
 
-        let user = await Usuario.findOne({ WhatsApp: whatsapp });
+        // BUSCA EXATA: Note o "WhatsApp" com W maiúsculo como está no seu print do MongoDB
+        let user = await Usuario.findOne({ WhatsApp: whatsLimpo });
         
         if (!user) {
-            user = new Usuario({ WhatsApp: whatsapp, nome: "Guerreiro(a)", pago: false, historico: [] });
+            user = new Usuario({ 
+                WhatsApp: whatsLimpo, 
+                nome: "Guerreiro(a)", 
+                pago: false, 
+                historico: [] 
+            });
         }
 
-        // Sincroniza dados vindos do Front
+        // Sincroniza dados com o perfil que vem do Front
         if (perfilExtraido) {
             if (perfilExtraido.nome) user.nome = perfilExtraido.nome;
             if (perfilExtraido.peso) user.peso = Number(String(perfilExtraido.peso).replace(',', '.'));
@@ -28,24 +35,31 @@ export const perguntaReceita = async (req, res) => {
             if (perfilExtraido.meta) user.meta = perfilExtraido.meta;
         }
 
-        // Definição explícita de constantes para o prompt (EVITA ERRO DE DEFINIÇÃO)
-        const constNome = user.nome || "Guerreiro(a)";
-        const constPeso = user.peso || "Não informado";
-        const constAltura = user.altura || "Não informada";
-        const constMeta = user.meta || "Emagrecimento";
+        // SEGURANÇA: Criamos constantes fixas para o Prompt
+        const NOME_IA = user.nome || "Guerreiro(a)";
+        const PESO_IA = user.peso || "90";
+        const ALTURA_IA = user.altura || "1.70";
+        const META_IA = user.meta || "Emagrecimento";
+
+        // Ajuste do Histórico: Garantir que role e content existam
+        const historicoLimpo = (user.historico || []).slice(-6).map(h => ({
+            role: h.role || h.papel || "user", // h.papel é caso o banco tenha salvo traduzido
+            content: h.content || h.contente || "" 
+        }));
 
         const mensagensParaEnviar = [
             { 
                 role: "system", 
-                content: `Você é um nutricionista esportivo de elite. PERFIL DO ALUNO: Nome: ${constNome}, Peso: ${constPeso}kg, Altura: ${constAltura}m, Objetivo: ${constMeta}.` 
+                content: `Você é um nutricionista esportivo. Aluno: ${NOME_IA}, Peso: ${PESO_IA}kg, Altura: ${ALTURA_IA}m, Meta: ${META_IA}.` 
             },
-            ...(user.historico || []).slice(-6).map(h => ({ role: h.role, content: h.content })),
+            ...historicoLimpo,
             { role: "user", content: mensagemAtual }
         ];
 
+        // Chama o serviço da OpenAI
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        if (!user.historico) user.historico = [];
+        // Salva no histórico (Usando os nomes padrões do Mongoose/OpenAI)
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: respostaIA });
         
@@ -63,11 +77,13 @@ export const perguntaReceita = async (req, res) => {
         });
 
     } catch (err) {
+        // Se der erro, o console vai dizer exatamente onde foi
         console.error("❌ ERRO NO CHAT:", err.message); 
-        res.status(200).json({ resposta: "Tive um soluço técnico aqui, mas já me recuperei! Pode repetir?" });
+        res.status(200).json({ 
+            resposta: "Tive um soluço técnico aqui, mas já me recuperei! Pode repetir sua pergunta?" 
+        });
     }
 };
-
 // --- 2. MENTOR DE TREINO IA (Sincronizado) ---
 export const gerarTreinoIA = async (req, res) => {
     try {
