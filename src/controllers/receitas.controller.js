@@ -1,7 +1,6 @@
 import Usuario from "./Usuario.js"; 
 import obterRespostaReceitas from "../services/openai.service.js";
 import OpenAI from "openai";
-import mongoose from "mongoose";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
