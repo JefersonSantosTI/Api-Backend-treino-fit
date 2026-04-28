@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// --- 1. CHAT NUTRIÇÃO (Sincronizado com Home e Blindado) ---
+// --- 1. CHAT NUTRIÇÃO (Corrigido erro de definição de variável) ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual, perfilExtraido } = req.body;
@@ -15,14 +15,13 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "Dados obrigatórios faltando" });
         }
 
-        // Busca o usuário no banco
         let user = await Usuario.findOne({ WhatsApp: whatsapp });
         
         if (!user) {
             user = new Usuario({ WhatsApp: whatsapp, nome: "Guerreiro(a)", pago: false, historico: [] });
         }
 
-        // Sincroniza dados da Home/Perfil se enviados pelo Front
+        // Sincroniza dados
         if (perfilExtraido) {
             if (perfilExtraido.nome) user.nome = perfilExtraido.nome;
             if (perfilExtraido.peso) user.peso = Number(String(perfilExtraido.peso).replace(',', '.'));
@@ -30,15 +29,18 @@ export const perguntaReceita = async (req, res) => {
             if (perfilExtraido.meta) user.meta = perfilExtraido.meta;
         }
 
-        const pesoInfo = user.peso || "Não informado";
-        const alturaInfo = user.altura || "Não informada";
-        const metaInfo = user.meta || "Emagrecimento";
+        // --- AQUI ESTAVA O ERRO ---
+        // Criamos as variáveis locais para garantir que o 'role: system' as encontre
+        const nomeUsuario = user.nome || "Guerreiro(a)";
+        const pesoUsuario = user.peso || "Não informado";
+        const alturaUsuario = user.altura || "Não informada";
+        const metaUsuario = user.meta || "Emagrecimento";
 
         const mensagensParaEnviar = [
             { 
                 role: "system", 
                 content: `Você é um nutricionista esportivo de elite. 
-                PERFIL DO ALUNO: Nome: ${user.nome}, Peso: ${pesoInfo}kg, Altura: ${alturaInfo}m, Objetivo: ${metaInfo}.` 
+                PERFIL DO ALUNO: Nome: ${nomeUsuario}, Peso: ${pesoUsuario}kg, Altura: ${alturaUsuario}m, Objetivo: ${metaUsuario}.` 
             },
             ...(user.historico || []).slice(-6).map(h => ({ role: h.role, content: h.content })),
             { role: "user", content: mensagemAtual }
@@ -46,7 +48,6 @@ export const perguntaReceita = async (req, res) => {
 
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // Salva histórico com segurança
         if (!user.historico) user.historico = [];
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: respostaIA });
@@ -65,8 +66,9 @@ export const perguntaReceita = async (req, res) => {
         });
 
     } catch (err) {
-        console.error("❌ ERRO NO CHAT:", err.message);
-        res.status(200).json({ resposta: "Tive um pequeno problema técnico, mas já estou de volta. Pode repetir sua pergunta?" });
+        // Agora o log vai te dizer exatamente qual variável deu erro se persistir
+        console.error("❌ ERRO NO CHAT:", err.message); 
+        res.status(200).json({ resposta: "Tive um soluço técnico aqui, mas já me recuperei! Pode repetir?" });
     }
 };
 
