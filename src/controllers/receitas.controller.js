@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// --- 1. CHAT NUTRIÇÃO (Ajustado para o novo Schema) ---
+// --- 1. CHAT NUTRIÇÃO (Blindado contra Erro 500) ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual, perfilExtraido } = req.body;
@@ -15,34 +15,34 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "Dados obrigatórios faltando" });
         }
 
-        // Busca o usuário
+        // BUSCA SEGURA: Garantindo que olhamos para a coleção certa
         let user = await Usuario.findOne({ WhatsApp: whatsapp });
         
         if (!user) {
-            user = await Usuario.create({ WhatsApp: whatsapp, nome: "Guerreiro(a)", pago: false });
+            user = new Usuario({ WhatsApp: whatsapp, nome: "Guerreiro(a)", pago: false, historico: [] });
         }
 
-        // --- CORREÇÃO AQUI: Atualiza os dados soltos (sem dadosBiometricos) ---
+        // Sincroniza os dados vindos do Front (perfilExtraido)
         if (perfilExtraido) {
             if (perfilExtraido.nome) user.nome = perfilExtraido.nome;
-            if (perfilExtraido.peso) {
-                user.peso = Number(String(perfilExtraido.peso).replace(',', '.'));
-            }
-            if (perfilExtraido.altura) {
-                user.altura = Number(String(perfilExtraido.altura).replace(',', '.'));
-            }
+            if (perfilExtraido.peso) user.peso = Number(String(perfilExtraido.peso).replace(',', '.'));
+            if (perfilExtraido.altura) user.altura = Number(String(perfilExtraido.altura).replace(',', '.'));
         }
 
-        // Prepara histórico
+        // Validação para não quebrar o prompt se o peso for zero
+        const pesoInfo = user.peso || "Não informado";
+        const alturaInfo = user.altura || "Não informada";
+
         const mensagensParaEnviar = [
-            { role: "system", content: `Você é um nutricionista esportivo. Usuário: ${user.nome}, Peso: ${user.peso}kg, Altura: ${user.altura}m.` },
-            ...user.historico.slice(-6).map(h => ({ role: h.role, content: h.content })),
+            { role: "system", content: `Você é um nutricionista esportivo de alta performance. Usuário: ${user.nome}, Peso: ${pesoInfo}kg, Altura: ${alturaInfo}m.` },
+            ...(user.historico || []).slice(-6).map(h => ({ role: h.role, content: h.content })),
             { role: "user", content: mensagemAtual }
         ];
 
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // Salva histórico
+        // SALVAMENTO SEGURO
+        if (!user.historico) user.historico = [];
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: respostaIA });
         
@@ -53,26 +53,26 @@ export const perguntaReceita = async (req, res) => {
             resposta: respostaIA,
             perfilAtualizado: { 
                 nome: user.nome, 
-                peso: user.peso || "", 
-                altura: user.altura || "" 
+                peso: user.peso, 
+                altura: user.altura 
             }
         });
 
     } catch (err) {
         console.error("❌ ERRO NO CHAT:", err.message);
-        res.status(500).json({ erro: "Erro ao processar consulta." });
+        // Retorna 200 com mensagem de erro amigável para o app não travar
+        res.status(200).json({ resposta: "Desculpe, tive um erro temporário. Pode repetir?" });
     }
 };
 
-// --- 2. MENTOR DE TREINO IA ---
+// --- 2. MENTOR DE TREINO IA (Ajustado para perfilExtraido) ---
 export const gerarTreinoIA = async (req, res) => {
     try {
-        const { whatsapp, objetivo, perfil } = req.body;
+        const { whatsapp, objetivo, perfilExtraido } = req.body; // Mudado de 'perfil' para 'perfilExtraido'
         const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
 
-        // Usa os dados do perfil enviado ou do banco
-        const peso = parseFloat(perfil?.peso || 70);
-        const altura = parseFloat(perfil?.altura || 1.70);
+        const peso = parseFloat(perfilExtraido?.peso || 70);
+        const altura = parseFloat(perfilExtraido?.altura || 1.70);
         const imc = (peso / (altura * altura)).toFixed(1);
 
         const completion = await openai.chat.completions.create({
@@ -80,9 +80,9 @@ export const gerarTreinoIA = async (req, res) => {
             messages: [
                 { 
                     role: "system", 
-                    content: `Gere um treino de elite em JSON para objetivo ${objetivo}. IMC: ${imc}.` 
+                    content: `Gere um treino de elite em JSON para objetivo ${objetivo}. IMC: ${imc}. Nome do atleta: ${perfilExtraido?.nome || 'Guerreiro'}.` 
                 },
-                { role: "user", content: "Gere o plano agora em formato JSON." }
+                { role: "user", content: "Gere o plano de treino completo em formato JSON agora." }
             ],
             response_format: { type: "json_object" }
         });
@@ -101,25 +101,22 @@ export const gerarTreinoIA = async (req, res) => {
     }
 };
 
-// --- 3. DADOS DO USUÁRIO (Sincronização do Home) ---
+// --- 3. DADOS DO USUÁRIO ---
 export const obterDadosUsuario = async (req, res) => {
   try {
     const { whatsapp } = req.params;
     const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
 
-    const db = mongoose.connection.useDb('nutricionista_db');
-    const colecao = db.collection('usuários');
-
-    const usuario = await colecao.findOne({ WhatsApp: whatsappLimpo });
+    // Busca direta pelo Model para evitar conflito de conexão
+    const usuario = await Usuario.findOne({ WhatsApp: whatsappLimpo });
 
     if (!usuario) {
       return res.status(404).json({ mensagem: "Usuário novo" });
     }
 
-    // Retorna os dados exatos que o App.js espera
     return res.status(200).json({
         nome: usuario.nome || "Guerreiro",
-        peso: usuario.peso || 0, // Agora ele vai achar o 98.8 aqui
+        peso: usuario.peso || 0,
         altura: usuario.altura || 0,
         meta: usuario.meta || "Emagrecimento",
         pago: usuario.pago || false
