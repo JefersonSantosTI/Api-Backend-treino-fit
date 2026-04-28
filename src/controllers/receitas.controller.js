@@ -55,8 +55,12 @@ export const perguntaReceita = async (req, res) => {
         ];
 
         // 5. Chamada para a IA
-        const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
-
+        const respostaIA = await obterRespostaReceitas(mensagensParaEnviar, {
+            nome: NOME_FINAL,
+            peso: PESO_FINAL,
+            altura: ALTURA_FINAL,
+            meta: META_FINAL
+        });
         // 6. Salva no histórico (Garante que os campos existam)
         if (!user.historico) user.historico = [];
         user.historico.push({ role: 'user', content: mensagemAtual });
