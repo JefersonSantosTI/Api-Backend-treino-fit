@@ -8,16 +8,22 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual, perfilExtraido } = req.body;
-        // Limpa o número para garantir que bata com o banco "61991268229"
-        const whatsLimpo = String(whatsappRaw || "").trim().replace(/\D/g, "");
+        
+        // 1. Limpeza rigorosa do número
+        const whatsLimpo = String(whatsappRaw || "").replace(/\D/g, "").trim();
 
         if (!whatsLimpo || !mensagemAtual) {
-            return res.status(400).json({ erro: "Dados obrigatórios faltando" });
+            return res.status(400).json({ erro: "Dados faltando" });
         }
 
-        // BUSCA EXATA: Note o "WhatsApp" com W maiúsculo como está no seu print do MongoDB
+        // 2. Busca o usuário (Tenta WhatsApp com W maiúsculo primeiro, como no seu print)
         let user = await Usuario.findOne({ WhatsApp: whatsLimpo });
         
+        // Se não achou com W maiúsculo, tenta minúsculo
+        if (!user) {
+            user = await Usuario.findOne({ whatsapp: whatsLimpo });
+        }
+
         if (!user) {
             user = new Usuario({ 
                 WhatsApp: whatsLimpo, 
@@ -27,39 +33,32 @@ export const perguntaReceita = async (req, res) => {
             });
         }
 
-        // Sincroniza dados com o perfil que vem do Front
-        if (perfilExtraido) {
-            if (perfilExtraido.nome) user.nome = perfilExtraido.nome;
-            if (perfilExtraido.peso) user.peso = Number(String(perfilExtraido.peso).replace(',', '.'));
-            if (perfilExtraido.altura) user.altura = Number(String(perfilExtraido.altura).replace(',', '.'));
-            if (perfilExtraido.meta) user.meta = perfilExtraido.meta;
-        }
+        // 3. Atualiza dados do perfil (Blindagem contra campos vazios)
+        const NOME_FINAL = perfilExtraido?.nome || user.nome || "Guerreiro(a)";
+        const PESO_FINAL = perfilExtraido?.peso || user.peso || "90";
+        const ALTURA_FINAL = perfilExtraido?.altura || user.altura || "1.75";
+        const META_FINAL = perfilExtraido?.meta || user.meta || "Emagrecimento";
 
-        // SEGURANÇA: Criamos constantes fixas para o Prompt
-        const NOME_IA = user.nome || "Guerreiro(a)";
-        const PESO_IA = user.peso || "90";
-        const ALTURA_IA = user.altura || "1.70";
-        const META_IA = user.meta || "Emagrecimento";
-
-        // Ajuste do Histórico: Garantir que role e content existam
-        const historicoLimpo = (user.historico || []).slice(-6).map(h => ({
-            role: h.role || h.papel || "user", // h.papel é caso o banco tenha salvo traduzido
-            content: h.content || h.contente || "" 
+        // 4. Limpeza do Histórico (Lida com 'role'/'papel' e 'content'/'contente')
+        const historicoSeguro = (user.historico || user.histórico || []).slice(-6).map(h => ({
+            role: h.role || h.papel || "user",
+            content: h.content || h.contente || ""
         }));
 
         const mensagensParaEnviar = [
             { 
                 role: "system", 
-                content: `Você é um nutricionista esportivo. Aluno: ${NOME_IA}, Peso: ${PESO_IA}kg, Altura: ${ALTURA_IA}m, Meta: ${META_IA}.` 
+                content: `Você é um nutricionista. Aluno: ${NOME_FINAL}, Peso: ${PESO_FINAL}kg, Altura: ${ALTURA_FINAL}m, Meta: ${META_FINAL}.` 
             },
-            ...historicoLimpo,
+            ...historicoSeguro,
             { role: "user", content: mensagemAtual }
         ];
 
-        // Chama o serviço da OpenAI
+        // 5. Chamada para a IA
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar);
 
-        // Salva no histórico (Usando os nomes padrões do Mongoose/OpenAI)
+        // 6. Salva no histórico (Garante que os campos existam)
+        if (!user.historico) user.historico = [];
         user.historico.push({ role: 'user', content: mensagemAtual });
         user.historico.push({ role: 'assistant', content: respostaIA });
         
@@ -68,17 +67,12 @@ export const perguntaReceita = async (req, res) => {
 
         res.json({ 
             resposta: respostaIA,
-            perfilAtualizado: { 
-                nome: user.nome, 
-                peso: user.peso, 
-                altura: user.altura,
-                meta: user.meta
-            }
+            perfilAtualizado: { nome: NOME_FINAL, peso: PESO_FINAL, altura: ALTURA_FINAL }
         });
 
     } catch (err) {
-        // Se der erro, o console vai dizer exatamente onde foi
-        console.error("❌ ERRO NO CHAT:", err.message); 
+        // ESSA LINHA É A MAIS IMPORTANTE AGORA
+        console.error("❌ ERRO REAL NO RENDER:", err.message); 
         res.status(200).json({ 
             resposta: "Tive um soluço técnico aqui, mas já me recuperei! Pode repetir sua pergunta?" 
         });
