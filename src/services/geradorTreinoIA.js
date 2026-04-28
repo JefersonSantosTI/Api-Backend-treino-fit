@@ -1,12 +1,11 @@
-// geradorTreinoIA.js
 import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function gerarDadosTreino(objetivo, perfil) {
-  // 1. Cálculo automático do IMC para guiar a IA
-  const peso = parseFloat(perfil.peso);
-  const altura = parseFloat(perfil.altura);
+  // 1. Cálculo automático do IMC com proteção contra valores vazios (NaN)
+  const peso = parseFloat(perfil.peso) || 75;
+  const altura = parseFloat(perfil.altura) || 1.70;
   const imc = (peso / (altura * altura)).toFixed(1);
 
   const resposta = await openai.chat.completions.create({
@@ -50,6 +49,5 @@ FORMATO OBRIGATÓRIO (JSON):
     response_format: { type: "json_object" }
   });
 
-  // Retorna o objeto já tratado
   return JSON.parse(resposta.choices[0].message.content);
 }

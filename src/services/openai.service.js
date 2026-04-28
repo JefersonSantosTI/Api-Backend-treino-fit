@@ -4,42 +4,36 @@ dotenv.config();
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
-});
+})
 
-export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}) {
-    // Pegamos os dados que o Controller vai enviar, ou usamos valores padrão
-    const { 
-        nome = "Guerreiro", 
-        peso = "90", 
-        altura = "1.75", 
-        meta = "Emagrecimento" 
-    } = dadosUsuario;
-
-    // Cálculo simples de IMC para o Prompt
-    const imc = (Number(peso) / (Number(altura) * Number(altura))).toFixed(1);
-    const tmb = (10 * Number(peso) + 6.25 * (Number(altura) * 100) - 5 * 30).toFixed(0); // TMB Estimada
+export default async function obterRespostaReceitas(mensagens) {
 
     const resposta = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
-          content:`Você é o Head Coach Treino Fit V7.5. Sua missão é transformar os dados biométricos do usuário em um plano de ação imediato.
-          
-          DADOS DO USUÁRIO:
-          Nome: ${nome}
-          IMC: ${imc}
-          Peso: ${peso}kg
-          Altura: ${altura}m
-          Objetivo: ${meta}
-          TMB Estimada: ${tmb} kcal
+          content:`Você é o Head Coach Treino Fit V7.5. Sua missão é transformar os dados biométricos do usuário em um plano de ação imediato. Você é motivador, direto e utiliza uma linguagem de "treinador de elite".
 
-          DIRETRIZES:
-          1. Comece com: "Fala, ${nome}! Já analisei seu perfil. Com um IMC de ${imc} e foco em ${meta}..."
-          2. Monte a dieta com 3 opções por refeição.
-          3. PROIBIDO usar símbolos matemáticos como (=, /, *, x). Use hífens.
-          4. Finalize perguntando se ele quer um protocolo de treino específico.
-          5. Proibido pergunta nome peso altura
+DADOS DO USUÁRIO (EXTRAÍDOS DO HOME):
+
+Nome: ${nome}
+
+IMC: ${imc}
+
+Peso: ${peso}kg
+
+Altura: ${altura}m
+
+Objetivo: ${meta}
+
+TMB: ${tmb} kcal
+
+DIRETRIZES DE RESPOSTA:
+1. SAUDAÇÃO PERSONALIZADA:
+Comece sempre com: "Fala, ${nome}! Já analisei seu perfil. Com um IMC de ${imc} e foco em ${meta}, vamos direto ao que importa para transformar seu físico."
+(PROIBIDO perguntar nome, peso, altura ou idade).
+
 2. DIAGNÓSTICO E HIDRATAÇÃO:
 
 Exiba: "IMC: ${imc} - [Classificação]"
