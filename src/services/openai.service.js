@@ -9,36 +9,25 @@ const openai = new OpenAI({
 // Adicionamos 'dadosUsuario' como segundo parâmetro para receber as infos
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}) {
   try {
+    // 1. Extração garantindo valores padrão para não quebrar a conta
     const { nome = "Guerreiro", peso = 70, altura = 1.70, meta = "Emagrecimento", idade = 25 } = dadosUsuario;
 
     const numPeso = Number(peso);
     const numAltura = Number(altura);
     const numIdade = Number(idade);
 
-    // 1. CÁLCULO DE TMB
-    const tmbBase = (10 * numPeso) + (6.25 * (numAltura * 100)) - (5 * numIdade) + 5;
-
-    // 2. CÁLCULO DO IMC (ADICIONE ESTA LINHA ABAIXO)
-    const imc = (numPeso / (numAltura * numAltura)).toFixed(1); // <--- O ERRO ESTAVA AQUI
-
-    // 3. DEFINIÇÃO DE CALORIAS
+    // 2. Cálculos matemáticos (Variáveis que a IA vai usar)
+    const tmb = (10 * numPeso) + (6.25 * (numAltura * 100)) - (5 * numIdade) + 5;
+    const imc = (numPeso / (numAltura * numAltura)).toFixed(1);
+    
     const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
-    const get = tmbBase * fatorAtividade;
-    const caloriasFinais = meta.toLowerCase().includes("hipertrofia") ? (get + 500).toFixed(0) : (get - 500).toFixed(0);
+    const get = tmb * fatorAtividade;
+    
+    const calorias = meta.toLowerCase().includes("hipertrofia") 
+      ? (get + 500).toFixed(0) 
+      : (get - 500).toFixed(0);
 
-    // 4. CÁLCULO DE ÁGUA
     const litrosAgua = ((numPeso * (meta.toLowerCase().includes("hipertrofia") ? 45 : 35)) / 1000).toFixed(1);
-
-    // 5. PROMPT DO SISTEMA
-    const promptSistema = {
-        role: "system",
-        content: `Você é o Head Coach Treino Fit...
-        Dados: Peso ${numPeso}kg, Altura ${numAltura}m, IMC ${imc}. // <--- Agora o imc existe!
-        Meta: ${meta}.
-        Calorias: ${caloriasFinais} kcal.
-        Água: ${litrosAgua}L.`
-    };
-
     const resposta = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -46,13 +35,14 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
           role: "system",
           content: `Você é o Head Coach Treino Fit V7.5, unindo a ciência de um Nutricionista Esportivo com a praticidade de um Nutricionista Clínico. Sua missão é uma CONSULTORIA DE ALTA PERFORMANCE.
 
-DADOS BIOMÉTRICOS TÉCNICOS:
-Atleta: ${nome} | Idade: ${numIdade} anos
-Meta: ${meta}
-IMC: ${imc}
-GET (Gasto Energético Alvo): ${caloriasFinais} kcal/dia
-Hidratação OBRIGATÓRIA: ${litrosAgua} Litros/dia
-
+Dados do Aluno: Nome: ${nome}, Peso: ${numPeso}kg, Altura: ${numAltura}m, Idade: ${numIdade} anos.
+        Bio: IMC: ${imc}, TMB: ${tmb.toFixed(0)} kcal.
+        Plano: Meta: ${meta}, Consumo Alvo: ${calorias} kcal/dia, Água: ${litrosAgua}L/dia.
+        
+        [REGRA CRÍTICA DE FORMATAÇÃO]
+        1. PULAGEM DE LINHA: É OBRIGATÓRIO pular DUAS LINHAS entre cada refeição.
+        2. HORÁRIOS: O horário deve vir em primeiro lugar e em NEGRITO (Ex: **08:00**).
+        3. VARIEDADE: Forneça 3 opções fáceis para cada refeição.
 DIRETRIZES DE COMPORTAMENTO:
 PROTOCOLO DE ATENDIMENTO:
 1. NA PRIMEIRA MENSAGEM: Não dê a dieta. Dê o diagnóstico. Ex: "Pela sua idade de ${numIdade} anos e meta de ${meta}, seu gasto total é de ${caloriasFinais} kcal. Para o seu peso, a hidratação de ${litrosAgua}L é inegociável."
