@@ -15,29 +15,28 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
     const numAltura = Number(altura);
     const numIdade = Number(idade);
 
-    // 1. CÁLCULO DE TMB (Mifflin-St Jeor)
+    // 1. CÁLCULO DE TMB
     const tmbBase = (10 * numPeso) + (6.25 * (numAltura * 100)) - (5 * numIdade) + 5;
 
-    // 2. DEFINIÇÃO DE CALORIAS
+    // 2. CÁLCULO DO IMC (ADICIONE ESTA LINHA ABAIXO)
+    const imc = (numPeso / (numAltura * numAltura)).toFixed(1); // <--- O ERRO ESTAVA AQUI
+
+    // 3. DEFINIÇÃO DE CALORIAS
     const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
     const get = tmbBase * fatorAtividade;
-    
-    // AQUI ESTAVA O ERRO: Certifique-se de que 'caloriasFinais' está definida
-    const caloriasFinais = meta.toLowerCase().includes("hipertrofia") 
-      ? (get + 500).toFixed(0) 
-      : (get - 500).toFixed(0);
+    const caloriasFinais = meta.toLowerCase().includes("hipertrofia") ? (get + 500).toFixed(0) : (get - 500).toFixed(0);
 
+    // 4. CÁLCULO DE ÁGUA
     const litrosAgua = ((numPeso * (meta.toLowerCase().includes("hipertrofia") ? 45 : 35)) / 1000).toFixed(1);
 
-    // 3. PROMPT DO SISTEMA (Injetando os dados calculados)
+    // 5. PROMPT DO SISTEMA
     const promptSistema = {
         role: "system",
-        content: `Você é o Head Coach Treino Fit.
-        Dados do Aluno: ${nome}, ${numPeso}kg, ${numAltura}m, ${numIdade} anos.
+        content: `Você é o Head Coach Treino Fit...
+        Dados: Peso ${numPeso}kg, Altura ${numAltura}m, IMC ${imc}. // <--- Agora o imc existe!
         Meta: ${meta}.
-        Calorias Alvo: ${caloriasFinais} kcal/dia.
-        Hidratação Alvo: ${litrosAgua}L/dia.
-        [REGRA CRÍTICA]: Dê 3 opções de refeições por horário. Use negrito nos horários. Pule duas linhas entre refeições.`
+        Calorias: ${caloriasFinais} kcal.
+        Água: ${litrosAgua}L.`
     };
 
     const resposta = await openai.chat.completions.create({
