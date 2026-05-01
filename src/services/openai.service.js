@@ -8,14 +8,14 @@ const openai = new OpenAI({
 
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}) {
   try {
-    // 1. EXTRAÇÃO E CONVERSÃO (Garante que tudo seja número e evita o erro 'not defined')
+    // 1. EXTRAÇÃO E CONVERSÃO
     const peso = Number(dadosUsuario.peso || 70);
     const altura = Number(dadosUsuario.altura || 1.70);
     const idade = Number(dadosUsuario.idade || 25);
     const nome = dadosUsuario.nome || "Guerreiro(a)";
     const meta = dadosUsuario.meta || "Emagrecimento";
 
-    // 2. CÁLCULOS (Usando as variáveis limpas acima)
+    // 2. CÁLCULOS
     const tmb = (10 * peso) + (6.25 * (altura * 100)) - (5 * idade) + 5;
     const imc = (peso / (altura * altura)).toFixed(1);
     const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
@@ -27,20 +27,7 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
 
     const litrosAgua = ((peso * (meta.toLowerCase().includes("hipertrofia") ? 45 : 35)) / 1000).toFixed(1);
 
-    // 3. PROMPT DO SISTEMA
-    const promptSistema = {
-        role: "system",
-        content: `Você é o Head Coach Treino Fit V7.5.
-        DADOS DO ALUNO: Nome: ${nome}, Peso: ${peso}kg, Altura: ${altura}m, Idade: ${idade} anos.
-        Bio: IMC: ${imc}, TMB: ${tmb.toFixed(0)} kcal.
-        Plano: Meta: ${meta}, Calorias Alvo: ${caloriasFinais} kcal/dia, Água: ${litrosAgua}L/dia.
-        
-        [REGRA CRÍTICA DE FORMATAÇÃO]
-        1. PULAGEM DE LINHA: É OBRIGATÓRIO pular DUAS LINHAS entre cada refeição.
-        2. HORÁRIOS: O horário deve vir em primeiro lugar e em NEGRITO (Ex: **08:00**).
-        3. VARIEDADE: Forneça 3 opções fáceis para cada refeição.`
-    };
-
+    // 3. CHAMADA OPENAI
     const resposta = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
@@ -56,9 +43,10 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
         1. PULAGEM DE LINHA: É OBRIGATÓRIO pular DUAS LINHAS entre cada refeição.
         2. HORÁRIOS: O horário deve vir em primeiro lugar e em NEGRITO (Ex: **08:00**).
         3. VARIEDADE: Forneça 3 opções fáceis para cada refeição.
+
 DIRETRIZES DE COMPORTAMENTO:
 PROTOCOLO DE ATENDIMENTO:
-1. NA PRIMEIRA MENSAGEM: Não dê a dieta. Dê o diagnóstico. Ex: "Pela sua idade de ${numIdade} anos e meta de ${meta}, seu gasto total é de ${caloriasFinais} kcal. Para o seu peso, a hidratação de ${litrosAgua}L é inegociável."
+1. NA PRIMEIRA MENSAGEM: Não dê a dieta. Dê o diagnóstico. Ex: "Pela sua idade de ${idade} anos e meta de ${meta}, seu gasto total é de ${caloriasFinais} kcal. Para o seu peso, a hidratação de ${litrosAgua}L é inegociável."
 2. EXPLICAÇÃO TÉCNICA: Se for Hipertrofia, explique que as calorias estão em superávit para construir tecido muscular. Se Emagrecimento, explique o déficit para oxidação de gordura.
 3. ALIMENTAÇÃO: Use 3 opções por refeição com ALIMENTOS REAIS (arroz, feijão, ovo, frango). 
 4. REGRAS CRÍTICAS: Pule DUAS LINHAS entre refeições. Horários em **Negrito**. PROIBIDO símbolos matemáticos.
@@ -68,7 +56,7 @@ PROTOCOLO DE ATENDIMENTO:
 REGRAS DE RESPOSTA (FASE 1 - O IMPACTO):
 Na primeira interação (sem histórico), você deve exibir:
 - SAUDAÇÃO: "Fala, ${nome}! Já analisei seu perfil e seus dados biológicos. Vamos transformar esse físico com inteligência."
-- DIAGNÓSTICO: "IMC: ${imc} - [Classificação]" e "TMB: ${tmb} kcal".
+- DIAGNÓSTICO: "IMC: ${imc} - [Classificação]" e "TMB: ${tmb.toFixed(0)} kcal".
 - ANÁLISE TÉCNICA: Se IMC > 25, mencione que o foco inicial será controle inflamatório e sensibilidade à insulina para o músculo aparecer.
 - HIDRATAÇÃO: "💧 Hidratação Diária OBRIGATÓRIA: ${litrosAgua} Litros".
 - FECHAMENTO DA FASE 1: "Antes de eu liberar sua estrutura completa de 3 opções por refeição, preciso saber: Qual horário você costuma treinar e se existe algum alimento básico que você não come de jeito nenhum?"
