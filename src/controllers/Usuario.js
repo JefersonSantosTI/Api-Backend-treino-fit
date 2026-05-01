@@ -1,26 +1,29 @@
 import mongoose from 'mongoose';
 
 const usuarioSchema = new mongoose.Schema({
-    // Identificador único
     WhatsApp: { type: String, unique: true, required: true },
-    
-    // Dados de Perfil (Soltos na raiz para facilitar a busca do App.js)
     nome: { type: String, default: "Guerreiro(a)" },
     pago: { type: Boolean, default: false },
     email: { type: String, default: "" },
     expiraEm: Date,
     meta: { type: String, default: "Emagrecimento" },
     
-    // Biometria (Campos diretos)
+    // Campos na raiz (O que o seu App.js usa agora)
     peso: { type: Number, default: 0 },
     altura: { type: Number, default: 0 },
-    idade: { type: Number, default: 0 },
+    idade: { type: Number, default: 25 }, // Padrão 25 para não zerar TMB
     genero: { type: String, default: "" },
+
+    // Objeto de compatibilidade (Onde os dados do print estão salvos)
+    dadosBiometricos: {
+        peso: Number,
+        altura: Number,
+        idade: Number,
+        meta: String
+    },
     
-    // Treinos e IA
     treinoCustomizado: { type: String, default: "" }, 
     treinoIA: { type: String, default: "" },
-    
     planoEscolhido: String,
     historico: [
         {
@@ -31,5 +34,5 @@ const usuarioSchema = new mongoose.Schema({
     ]
 }, { timestamps: true });
 
-// Exporta o modelo garantindo o uso da coleção 'usuários' com acento
+// MANTEREMOS 'usuários' para não perder os 10 documentos que você já tem
 export default mongoose.model('Usuario', usuarioSchema, 'usuários');
