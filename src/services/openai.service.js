@@ -9,25 +9,38 @@ const openai = new OpenAI({
 // Adicionamos 'dadosUsuario' como segundo parâmetro para receber as infos
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}) {
   try {
-    // 1. Extração garantindo valores padrão para não quebrar a conta
     const { nome = "Guerreiro", peso = 70, altura = 1.70, meta = "Emagrecimento", idade = 25 } = dadosUsuario;
 
     const numPeso = Number(peso);
     const numAltura = Number(altura);
     const numIdade = Number(idade);
 
-    // 2. Cálculos matemáticos (Variáveis que a IA vai usar)
+    // 1. CÁLCULOS
     const tmb = (10 * numPeso) + (6.25 * (numAltura * 100)) - (5 * numIdade) + 5;
     const imc = (numPeso / (numAltura * numAltura)).toFixed(1);
-    
     const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
     const get = tmb * fatorAtividade;
     
-    const calorias = meta.toLowerCase().includes("hipertrofia") 
+    // ATENÇÃO: Definindo como 'caloriasFinais' para bater com o seu prompt
+    const caloriasFinais = meta.toLowerCase().includes("hipertrofia") 
       ? (get + 500).toFixed(0) 
       : (get - 500).toFixed(0);
 
     const litrosAgua = ((numPeso * (meta.toLowerCase().includes("hipertrofia") ? 45 : 35)) / 1000).toFixed(1);
+
+    // 2. PROMPT DO SISTEMA
+    const promptSistema = {
+        role: "system",
+        content: `Você é o Head Coach Treino Fit V7.5. 
+        Dados do Aluno: Nome: ${nome}, Peso: ${numPeso}kg, Altura: ${numAltura}m, Idade: ${numIdade} anos.
+        Bio: IMC: ${imc}, TMB: ${tmb.toFixed(0)} kcal.
+        Plano: Meta: ${meta}, Consumo Alvo: ${caloriasFinais} kcal/dia, Água: ${litrosAgua}L/dia.
+        
+        [REGRA CRÍTICA DE FORMATAÇÃO]
+        1. PULAGEM DE LINHA: É OBRIGATÓRIO pular DUAS LINHAS entre cada refeição.
+        2. HORÁRIOS: O horário deve vir em primeiro lugar e em NEGRITO (Ex: **08:00**).
+        3. VARIEDADE: Forneça 3 opções fáceis para cada refeição.`
+    };
     const resposta = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
