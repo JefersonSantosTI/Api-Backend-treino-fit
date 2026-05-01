@@ -1,14 +1,7 @@
-import Usuario from "./Usuario.js"; 
+import Usuario from "../models/Usuario.js"; // Verifique se o caminho do import está correto (../models/Usuario.js)
 import obterRespostaReceitas from "../services/openai.service.js";
 import gerarDadosTreino from "../services/geradorTreinoIA.js"; 
-import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// --- 1. CHAT NUTRIÇÃO (ATUALIZADO COM IDADE) ---
-// ... (mantenha seus imports e config da openai)
-
-// --- 1. CHAT NUTRIÇÃO (VERSÃO FINAL BLINDADA) ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual, perfilExtraido } = req.body;
@@ -18,16 +11,15 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "Dados faltando" });
         }
 
-        // Busca o usuário tentando os dois campos possíveis (WhatsApp com W maiúsculo e minúsculo)
         let user = await Usuario.findOne({ WhatsApp: whatsLimpo }) || await Usuario.findOne({ whatsapp: whatsLimpo });
 
         if (!user) {
             user = new Usuario({ WhatsApp: whatsLimpo, nome: "Guerreiro(a)", pago: false, historico: [] });
         }
 
-        // --- SOLUÇÃO PARA O ERRO DE VARIÁVEL: Busca na raiz OU dentro de dadosBiometricos ---
+        // --- BUSCA DE DADOS ---
         const NOME_FINAL = perfilExtraido?.nome || user.nome || "Guerreiro(a)";
-        const PESO_FINAL = Number(perfilExtraido?.peso || user.peso || user.dadosBiometricos?.peso || 90);
+        const PESO_FINAL = Number(perfilExtraido?.peso || user.peso || user.dadosBiometricos?.peso || 75);
         const ALTURA_FINAL = Number(perfilExtraido?.altura || user.altura || user.dadosBiometricos?.altura || 1.75);
         const META_FINAL = perfilExtraido?.meta || user.meta || user.dadosBiometricos?.meta || "Emagrecimento";
         const IDADE_FINAL = Number(perfilExtraido?.idade || user.idade || user.dadosBiometricos?.idade || 25);
@@ -39,7 +31,6 @@ export const perguntaReceita = async (req, res) => {
 
         mensagensParaEnviar.push({ role: "user", content: mensagemAtual });
 
-        // Agora enviamos os dados garantidos como números para o serviço
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar, {
             nome: NOME_FINAL, 
             peso: PESO_FINAL, 
@@ -55,10 +46,7 @@ export const perguntaReceita = async (req, res) => {
         res.json({ 
             resposta: respostaIA, 
             perfilAtualizado: { 
-                nome: NOME_FINAL, 
-                peso: PESO_FINAL, 
-                altura: ALTURA_FINAL,
-                idade: IDADE_FINAL 
+                nome: NOME_FINAL, peso: PESO_FINAL, altura: ALTURA_FINAL, idade: IDADE_FINAL 
             } 
         });
     } catch (err) {

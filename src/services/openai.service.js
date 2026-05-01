@@ -6,18 +6,16 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// Adicionamos 'dadosUsuario' como segundo parâmetro para receber as infos
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}) {
   try {
-    // 1. EXTRAÇÃO E CONVERSÃO IMEDIATA
-    // Buscamos na raiz ou em dadosBiometricos, garantindo que vire número logo de cara
-    const peso = Number(dadosUsuario.peso || dadosUsuario.dadosBiometricos?.peso || 70);
-    const altura = Number(dadosUsuario.altura || dadosUsuario.dadosBiometricos?.altura || 1.70);
-    const idade = Number(dadosUsuario.idade || dadosUsuario.dadosBiometricos?.idade) || 25;
+    // 1. EXTRAÇÃO E CONVERSÃO (Garante que tudo seja número e evita o erro 'not defined')
+    const peso = Number(dadosUsuario.peso || 70);
+    const altura = Number(dadosUsuario.altura || 1.70);
+    const idade = Number(dadosUsuario.idade || 25);
     const nome = dadosUsuario.nome || "Guerreiro(a)";
-    const meta = dadosUsuario.meta || dadosUsuario.dadosBiometricos?.meta || "Emagrecimento";
+    const meta = dadosUsuario.meta || "Emagrecimento";
 
-    // 2. CÁLCULOS (Usando os nomes diretos: peso, altura, idade)
+    // 2. CÁLCULOS (Usando as variáveis limpas acima)
     const tmb = (10 * peso) + (6.25 * (altura * 100)) - (5 * idade) + 5;
     const imc = (peso / (altura * altura)).toFixed(1);
     const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
@@ -29,7 +27,7 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
 
     const litrosAgua = ((peso * (meta.toLowerCase().includes("hipertrofia") ? 45 : 35)) / 1000).toFixed(1);
 
-    // 3. PROMPT DO SISTEMA (Certifique-se de usar exatamente os nomes acima)
+    // 3. PROMPT DO SISTEMA
     const promptSistema = {
         role: "system",
         content: `Você é o Head Coach Treino Fit V7.5.
@@ -99,8 +97,9 @@ FECHAMENTO FINAL:
     });
 
     return resposta.choices[0].message.content;
-  } catch (error) {
-    console.error("❌ ERRO OPENAI SERVICE:", error.message);
-    throw error;
+
+  } catch (err) {
+    console.error("❌ ERRO NO SERVIÇO OPENAI:", err.message);
+    throw new Error(err.message);
   }
 }

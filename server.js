@@ -78,7 +78,6 @@ app.post("/api/usuarios/ativar-vip", async (req, res) => {
 // --- ROTA 3: ONBOARDING (PESO/ALTURA) ---
 app.post("/api/usuarios/atualizar", async (req, res) => {
     try {
-        // Adicionei 'idade' aqui no destructuring
         const { whatsapp, nome, peso, altura, meta, idade } = req.body; 
         const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
         const db = mongoose.connection.useDb('nutricionista_db');
@@ -90,7 +89,7 @@ app.post("/api/usuarios/atualizar", async (req, res) => {
                     nome: nome,
                     peso: Number(peso), 
                     altura: Number(altura), 
-                    idade: Number(idade), // <--- AGORA SALVA A IDADE
+                    idade: Number(idade), 
                     meta: meta,
                     WhatsApp: whatsappLimpo
                 } 
@@ -103,6 +102,9 @@ app.post("/api/usuarios/atualizar", async (req, res) => {
         res.status(500).json({ erro: "Erro ao salvar" });
     }
 });
+
+app.use("/api", receitasRoutes);
+
 // --- ROTA PARA O FRONTEND BUSCAR DADOS (ESSENCIAL) ---
 app.get("/api/usuarios/:whatsapp", async (req, res) => {
     try {
