@@ -1,4 +1,4 @@
-import Usuario from "../models/Usuario.js"; // Verifique se o caminho do import está correto (../models/Usuario.js)
+import Usuario from "../controllers/Usuario.js"
 import obterRespostaReceitas from "../services/openai.service.js";
 import gerarDadosTreino from "../services/geradorTreinoIA.js"; 
 
