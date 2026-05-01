@@ -9,31 +9,36 @@ const openai = new OpenAI({
 // Adicionamos 'dadosUsuario' como segundo parâmetro para receber as infos
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}) {
   try {
-    // 1. EXTRAÇÃO DOS DADOS DO FRONT-END
     const { nome = "Guerreiro", peso = 70, altura = 1.70, meta = "Emagrecimento", idade = 25 } = dadosUsuario;
 
     const numPeso = Number(peso);
     const numAltura = Number(altura);
     const numIdade = Number(idade);
 
-    // 2. CÁLCULO DE NUTRIÇÃO EXPERT (MIFFLIN-ST JEOR)
+    // 1. CÁLCULO DE TMB (Mifflin-St Jeor)
     const tmbBase = (10 * numPeso) + (6.25 * (numAltura * 100)) - (5 * numIdade) + 5;
 
-    // 3. DEFINIÇÃO DO FATOR DE ATIVIDADE (Atleta vs Sedentário)
-    // Hipertrofia assume treino (1.55). Emagrecimento foca em queima controlada (1.2).
+    // 2. DEFINIÇÃO DE CALORIAS
     const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
     const get = tmbBase * fatorAtividade;
-
-    // 4. AJUSTE DE META (Déficit ou Superávit)
+    
+    // AQUI ESTAVA O ERRO: Certifique-se de que 'caloriasFinais' está definida
     const caloriasFinais = meta.toLowerCase().includes("hipertrofia") 
       ? (get + 500).toFixed(0) 
       : (get - 500).toFixed(0);
 
-    // 5. CÁLCULO DE ÁGUA PERSONALIZADO (Regra Treino Fit)
-    const multiplicadorAgua = meta.toLowerCase().includes("hipertrofia") ? 45 : 35;
-    const litrosAgua = ((numPeso * multiplicadorAgua) / 1000).toFixed(1);
+    const litrosAgua = ((numPeso * (meta.toLowerCase().includes("hipertrofia") ? 45 : 35)) / 1000).toFixed(1);
 
-    const imc = (numPeso / (numAltura * numAltura)).toFixed(1);
+    // 3. PROMPT DO SISTEMA (Injetando os dados calculados)
+    const promptSistema = {
+        role: "system",
+        content: `Você é o Head Coach Treino Fit.
+        Dados do Aluno: ${nome}, ${numPeso}kg, ${numAltura}m, ${numIdade} anos.
+        Meta: ${meta}.
+        Calorias Alvo: ${caloriasFinais} kcal/dia.
+        Hidratação Alvo: ${litrosAgua}L/dia.
+        [REGRA CRÍTICA]: Dê 3 opções de refeições por horário. Use negrito nos horários. Pule duas linhas entre refeições.`
+    };
 
     const resposta = await openai.chat.completions.create({
       model: "gpt-4o-mini",
