@@ -21,19 +21,22 @@ export const perguntaReceita = async (req, res) => {
             user = new Usuario({ WhatsApp: whatsLimpo, nome: "Guerreiro(a)", pago: false, historico: [] });
         }
 
-        // --- ADIÇÃO DO FATOR IDADE ---
         const NOME_FINAL = perfilExtraido?.nome || user.nome || "Guerreiro(a)";
         const PESO_FINAL = perfilExtraido?.peso || user.peso || "90";
         const ALTURA_FINAL = perfilExtraido?.altura || user.altura || "1.75";
         const META_FINAL = perfilExtraido?.meta || user.meta || "Emagrecimento";
-        const IDADE_FINAL = perfilExtraido?.idade || user.idade || "25"; // Puxa a idade do perfil ou do banco
+        const IDADE_FINAL = perfilExtraido?.idade || user.idade || "25";
 
-        const historicoSeguro = (user.historico || []).slice(-6).map(h => ({
-            role: h.role || h.papel || "user",
-            content: h.content || h.contente || ""
+        // Criamos o histórico que será enviado
+        const mensagensParaEnviar = (user.historico || []).slice(-6).map(h => ({
+            role: h.role || "user",
+            content: h.content || ""
         }));
 
-        // Injetando a IDADE para o service não retornar erro de cálculo (NaN)
+        // Adicionamos a mensagem atual do usuário ao array antes de enviar para a IA
+        mensagensParaEnviar.push({ role: "user", content: mensagemAtual });
+
+        // AGORA A VARIÁVEL mensagensParaEnviar EXISTE E ESTÁ DEFINIDA
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar, {
             nome: NOME_FINAL, 
             peso: PESO_FINAL, 
@@ -56,7 +59,7 @@ export const perguntaReceita = async (req, res) => {
             } 
         });
     } catch (err) {
-        console.error("❌ ERRO NO CHAT:", err.message);
+        console.error("❌ ERRO NO CHAT:", err.message); // Este console.error te mostrou o problema!
         res.status(200).json({ resposta: "Tive um soluço técnico aqui, mas já me recuperei!" });
     }
 };
