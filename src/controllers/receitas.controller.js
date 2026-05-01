@@ -67,6 +67,37 @@ export const perguntaReceita = async (req, res) => {
     }
 };
 
+// --- 2. MENTOR DE TREINO IA ---
+export const gerarTreinoIA = async (req, res) => {
+    try {
+        const { whatsapp, objetivo, perfilExtraido } = req.body;
+        const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
+
+        const user = await Usuario.findOne({ WhatsApp: whatsappLimpo }) || await Usuario.findOne({ whatsapp: whatsappLimpo });
+
+        const dadosParaIA = {
+            nome: perfilExtraido?.nome || user?.nome || "Guerreiro",
+            peso: Number(perfilExtraido?.peso || user?.peso || user?.dadosBiometricos?.peso || 75),
+            altura: Number(perfilExtraido?.altura || user?.altura || user?.dadosBiometricos?.altura || 1.75),
+            idade: Number(perfilExtraido?.idade || user?.idade || user?.dadosBiometricos?.idade || 25),
+            meta: perfilExtraido?.meta || user?.meta || objetivo || "Performance"
+        };
+
+        const treinoData = await gerarDadosTreino(dadosParaIA.meta, dadosParaIA);
+
+        if (user) {
+            user.treinoCustomizado = JSON.stringify(treinoData);
+            user.markModified('treinoCustomizado');
+            await user.save();
+        }
+
+        res.json(treinoData);
+    } catch (err) {
+        console.error("❌ ERRO TREINO:", err.message);
+        res.status(500).json({ erro: "Falha ao gerar treino técnico." });
+    }
+};
+
 // --- 3. DADOS DO USUÁRIO (RESOLVE O ERRO 404) ---
 export const obterDadosUsuario = async (req, res) => {
   try {
@@ -126,4 +157,5 @@ export const tornarVip = async (req, res) => {
     } catch (err) {
         res.status(500).json({ erro: "Erro ao ativar VIP" });
     }
+    
 };
