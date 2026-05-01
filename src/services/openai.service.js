@@ -9,19 +9,31 @@ const openai = new OpenAI({
 // Adicionamos 'dadosUsuario' como segundo parâmetro para receber as infos
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}) {
   try {
-    // 1. Extração e Fallbacks (Garante que o código não quebre se faltar dado)
-    const nome = dadosUsuario.nome || "Guerreiro";
-    const peso = Number(dadosUsuario.peso) || 75;
-    const altura = Number(dadosUsuario.altura) || 1.70;
-    const meta = dadosUsuario.meta || "Emagrecimento";
+    // 1. EXTRAÇÃO DOS DADOS DO FRONT-END
+    const { nome = "Guerreiro", peso = 70, altura = 1.70, meta = "Emagrecimento", idade = 25 } = dadosUsuario;
 
-    // 2. Cálculos Automáticos para o Prompt
-    const imc = (peso / (altura * altura)).toFixed(1);
-    const tmb = (10 * peso + 6.25 * (altura * 100) - 5 * 30).toFixed(0);
-    
-    // Cálculo da Água baseado na sua regra
+    const numPeso = Number(peso);
+    const numAltura = Number(altura);
+    const numIdade = Number(idade);
+
+    // 2. CÁLCULO DE NUTRIÇÃO EXPERT (MIFFLIN-ST JEOR)
+    const tmbBase = (10 * numPeso) + (6.25 * (numAltura * 100)) - (5 * numIdade) + 5;
+
+    // 3. DEFINIÇÃO DO FATOR DE ATIVIDADE (Atleta vs Sedentário)
+    // Hipertrofia assume treino (1.55). Emagrecimento foca em queima controlada (1.2).
+    const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
+    const get = tmbBase * fatorAtividade;
+
+    // 4. AJUSTE DE META (Déficit ou Superávit)
+    const caloriasFinais = meta.toLowerCase().includes("hipertrofia") 
+      ? (get + 500).toFixed(0) 
+      : (get - 500).toFixed(0);
+
+    // 5. CÁLCULO DE ÁGUA PERSONALIZADO (Regra Treino Fit)
     const multiplicadorAgua = meta.toLowerCase().includes("hipertrofia") ? 45 : 35;
-    const litrosAgua = ((peso * multiplicadorAgua) / 1000).toFixed(1);
+    const litrosAgua = ((numPeso * multiplicadorAgua) / 1000).toFixed(1);
+
+    const imc = (numPeso / (numAltura * numAltura)).toFixed(1);
 
     const resposta = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -30,11 +42,19 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
           role: "system",
           content: `Você é o Head Coach Treino Fit V7.5, unindo a ciência de um Nutricionista Esportivo com a praticidade de um Nutricionista Clínico. Sua missão é uma CONSULTORIA DE ALTA PERFORMANCE.
 
-DADOS FIXOS (NUNCA PERGUNTE ESTES DADOS):
-Nome: ${nome} | IMC: ${imc} | Peso: ${peso}kg | Altura: ${altura}m | Objetivo: ${meta} | TMB: ${tmb} kcal
+DADOS BIOMÉTRICOS TÉCNICOS:
+Atleta: ${nome} | Idade: ${numIdade} anos
+Meta: ${meta}
+IMC: ${imc}
+GET (Gasto Energético Alvo): ${caloriasFinais} kcal/dia
+Hidratação OBRIGATÓRIA: ${litrosAgua} Litros/dia
 
 DIRETRIZES DE COMPORTAMENTO:
-1. NÃO ENTREGUE a dieta completa na primeira mensagem. Primeiro, gere autoridade e faça o diagnóstico.
+PROTOCOLO DE ATENDIMENTO:
+1. NA PRIMEIRA MENSAGEM: Não dê a dieta. Dê o diagnóstico. Ex: "Pela sua idade de ${numIdade} anos e meta de ${meta}, seu gasto total é de ${caloriasFinais} kcal. Para o seu peso, a hidratação de ${litrosAgua}L é inegociável."
+2. EXPLICAÇÃO TÉCNICA: Se for Hipertrofia, explique que as calorias estão em superávit para construir tecido muscular. Se Emagrecimento, explique o déficit para oxidação de gordura.
+3. ALIMENTAÇÃO: Use 3 opções por refeição com ALIMENTOS REAIS (arroz, feijão, ovo, frango). 
+4. REGRAS CRÍTICAS: Pule DUAS LINHAS entre refeições. Horários em **Negrito**. PROIBIDO símbolos matemáticos.
 2. ESTRATÉGIA PARA HIPERTROFIA: Se o objetivo for Ganho de Massa, foque em "Bulking Limpo". Use alimentos que constroem músculo mas controlam a gordura abdominal, mantendo a densidade nutricional.
 3. ALIMENTOS ACESSÍVEIS: Use apenas o básico (ovo, frango, arroz, feijão, aveia, banana, pão de forma, batata doce, cuscuz). Nada de suplementos caros ou dietas impossíveis.
 
