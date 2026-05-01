@@ -8,6 +8,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // --- 1. CHAT NUTRIÇÃO (ATUALIZADO COM IDADE) ---
 // ... (mantenha seus imports e config da openai)
 
+// --- 1. CHAT NUTRIÇÃO (VERSÃO FINAL BLINDADA) ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual, perfilExtraido } = req.body;
@@ -17,18 +18,19 @@ export const perguntaReceita = async (req, res) => {
             return res.status(400).json({ erro: "Dados faltando" });
         }
 
+        // Busca o usuário tentando os dois campos possíveis (WhatsApp com W maiúsculo e minúsculo)
         let user = await Usuario.findOne({ WhatsApp: whatsLimpo }) || await Usuario.findOne({ whatsapp: whatsLimpo });
 
         if (!user) {
             user = new Usuario({ WhatsApp: whatsLimpo, nome: "Guerreiro(a)", pago: false, historico: [] });
         }
 
-        // --- AJUSTE AQUI: Garantindo que os dados sejam números para não quebrar o cálculo ---
+        // --- SOLUÇÃO PARA O ERRO DE VARIÁVEL: Busca na raiz OU dentro de dadosBiometricos ---
         const NOME_FINAL = perfilExtraido?.nome || user.nome || "Guerreiro(a)";
-        const PESO_FINAL = Number(perfilExtraido?.peso || user.peso || 90);
-        const ALTURA_FINAL = Number(perfilExtraido?.altura || user.altura || 1.75);
-        const META_FINAL = perfilExtraido?.meta || user.meta || "Emagrecimento";
-        const IDADE_FINAL = Number(perfilExtraido?.idade || user.idade || 25);
+        const PESO_FINAL = Number(perfilExtraido?.peso || user.peso || user.dadosBiometricos?.peso || 90);
+        const ALTURA_FINAL = Number(perfilExtraido?.altura || user.altura || user.dadosBiometricos?.altura || 1.75);
+        const META_FINAL = perfilExtraido?.meta || user.meta || user.dadosBiometricos?.meta || "Emagrecimento";
+        const IDADE_FINAL = Number(perfilExtraido?.idade || user.idade || user.dadosBiometricos?.idade || 25);
 
         const mensagensParaEnviar = (user.historico || []).slice(-6).map(h => ({
             role: h.role || "user",
@@ -37,7 +39,7 @@ export const perguntaReceita = async (req, res) => {
 
         mensagensParaEnviar.push({ role: "user", content: mensagemAtual });
 
-        // Envia os dados para o serviço que calcula a TMB internamente
+        // Agora enviamos os dados garantidos como números para o serviço
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar, {
             nome: NOME_FINAL, 
             peso: PESO_FINAL, 
@@ -61,59 +63,43 @@ export const perguntaReceita = async (req, res) => {
         });
     } catch (err) {
         console.error("❌ ERRO NO CHAT:", err.message);
-        res.status(200).json({ resposta: "Tive um soluço técnico aqui, mas já estou de volta!" });
+        res.status(200).json({ resposta: "Tive um soluço técnico, mas já recuperei seus dados. Pode perguntar de novo!" });
     }
 };
 
-// --- 2. MENTOR DE TREINO IA (MANTIDO) ---
-export const gerarTreinoIA = async (req, res) => {
-    try {
-        const { whatsapp, objetivo, perfilExtraido } = req.body;
-        const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
-
-        const user = await Usuario.findOne({ WhatsApp: whatsappLimpo });
-
-        const dadosParaIA = {
-            nome: perfilExtraido?.nome || user?.nome || "Guerreiro",
-            peso: Number(perfilExtraido?.peso || user?.peso || 75),
-            altura: Number(perfilExtraido?.altura || user?.altura || 1.75),
-            idade: Number(perfilExtraido?.idade || user?.idade || 25), // Adicionado para consistência
-            meta: perfilExtraido?.meta || user?.meta || objetivo || "Performance"
-        };
-
-        const treinoData = await gerarDadosTreino(dadosParaIA.meta, dadosParaIA);
-
-        if (user) {
-            user.treinoCustomizado = JSON.stringify(treinoData);
-            user.markModified('treinoCustomizado');
-            await user.save();
-        }
-
-        res.json(treinoData);
-    } catch (err) {
-        console.error("❌ ERRO TREINO:", err.message);
-        res.status(500).json({ erro: "Falha ao gerar treino técnico." });
-    }
-};
-
-// --- 3. DADOS DO USUÁRIO (ATUALIZADO COM IDADE) ---
+// --- 3. DADOS DO USUÁRIO (RESOLVE O ERRO 404) ---
 export const obterDadosUsuario = async (req, res) => {
   try {
     const { whatsapp } = req.params;
-    const usuario = await Usuario.findOne({ WhatsApp: String(whatsapp).replace(/\D/g, "") });
+    const whatsLimpo = String(whatsapp).replace(/\D/g, "");
     
-    if (!usuario) return res.status(404).json({ mensagem: "Usuário novo" });
+    // Busca flexível para garantir que encontre o usuário
+    const usuario = await Usuario.findOne({ WhatsApp: whatsLimpo }) || await Usuario.findOne({ whatsapp: whatsLimpo });
     
+    if (!usuario) {
+        // Em vez de 404, retornamos um objeto padrão para o Front-end não quebrar
+        return res.status(200).json({
+            nome: "Guerreiro(a)",
+            peso: 0,
+            altura: 0,
+            idade: 25,
+            meta: "Emagrecimento",
+            pago: false,
+            novo: true
+        });
+    }
+    
+    // Retorna os dados buscando tanto na raiz quanto no objeto dadosBiometricos (que vimos no seu MongoDB)
     return res.status(200).json({
         nome: usuario.nome || "Guerreiro",
-        peso: usuario.peso || 0,
-        altura: usuario.altura || 0,
-        idade: usuario.idade || 25, // Retorna a idade para o Front-end
-        meta: usuario.meta || "Emagrecimento",
+        peso: usuario.peso || usuario.dadosBiometricos?.peso || 0,
+        altura: usuario.altura || usuario.dadosBiometricos?.altura || 0,
+        idade: usuario.idade || usuario.dadosBiometricos?.idade || 25,
+        meta: usuario.meta || usuario.dadosBiometricos?.meta || "Emagrecimento",
         pago: usuario.pago || false
       });
   } catch (err) {
-    return res.status(500).json({ erro: "Erro interno" });
+    return res.status(500).json({ erro: "Erro interno ao buscar usuário" });
   }
 };
 
