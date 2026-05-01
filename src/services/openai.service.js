@@ -9,31 +9,40 @@ const openai = new OpenAI({
 // Adicionamos 'dadosUsuario' como segundo parâmetro para receber as infos
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}) {
   try {
-    // 1. CAPTURA INTELIGENTE (Busca no objeto enviado ou nos dados que vieram do banco)
-    // Se a idade for 0 ou não existir, usamos 25 como padrão para não quebrar o cálculo
+    // 1. EXTRAÇÃO E CONVERSÃO IMEDIATA
+    // Buscamos na raiz ou em dadosBiometricos, garantindo que vire número logo de cara
     const peso = Number(dadosUsuario.peso || dadosUsuario.dadosBiometricos?.peso || 70);
     const altura = Number(dadosUsuario.altura || dadosUsuario.dadosBiometricos?.altura || 1.70);
     const idade = Number(dadosUsuario.idade || dadosUsuario.dadosBiometricos?.idade) || 25;
-    const nome = dadosUsuario.nome || "Guerreiro";
+    const nome = dadosUsuario.nome || "Guerreiro(a)";
     const meta = dadosUsuario.meta || dadosUsuario.dadosBiometricos?.meta || "Emagrecimento";
 
-    // 2. CÁLCULOS (Nomes padronizados para evitar erro de 'not defined')
+    // 2. CÁLCULOS (Usando os nomes diretos: peso, altura, idade)
     const tmb = (10 * peso) + (6.25 * (altura * 100)) - (5 * idade) + 5;
     const imc = (peso / (altura * altura)).toFixed(1);
     const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
-    const calorias = (tmb * fatorAtividade + (meta.toLowerCase().includes("hipertrofia") ? 500 : -500)).toFixed(0);
+    const get = tmb * fatorAtividade;
+    
+    const caloriasFinais = meta.toLowerCase().includes("hipertrofia") 
+      ? (get + 500).toFixed(0) 
+      : (get - 500).toFixed(0);
+
     const litrosAgua = ((peso * (meta.toLowerCase().includes("hipertrofia") ? 45 : 35)) / 1000).toFixed(1);
 
-    // 3. PROMPT DO SISTEMA
+    // 3. PROMPT DO SISTEMA (Certifique-se de usar exatamente os nomes acima)
     const promptSistema = {
         role: "system",
         content: `Você é o Head Coach Treino Fit V7.5.
         DADOS DO ALUNO: Nome: ${nome}, Peso: ${peso}kg, Altura: ${altura}m, Idade: ${idade} anos.
-        PERFIL: IMC: ${imc}, TMB: ${tmb.toFixed(0)} kcal.
-        PLANO ATUAL: Meta: ${meta}, Calorias Alvo: ${calorias} kcal/dia, Hidratação: ${litrosAgua}L/dia.
+        Bio: IMC: ${imc}, TMB: ${tmb.toFixed(0)} kcal.
+        Plano: Meta: ${meta}, Calorias Alvo: ${caloriasFinais} kcal/dia, Água: ${litrosAgua}L/dia.
         
-        [REGRA CRÍTICA]: Use negrito nos horários (Ex: **08:00**). Pule duas linhas entre refeições.`
+        [REGRA CRÍTICA DE FORMATAÇÃO]
+        1. PULAGEM DE LINHA: É OBRIGATÓRIO pular DUAS LINHAS entre cada refeição.
+        2. HORÁRIOS: O horário deve vir em primeiro lugar e em NEGRITO (Ex: **08:00**).
+        3. VARIEDADE: Forneça 3 opções fáceis para cada refeição.`
     };
+
     const resposta = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
