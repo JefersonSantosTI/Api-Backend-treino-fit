@@ -47,6 +47,12 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
         3. CALORIAS: Ao final de cada OPÇÃO, coloque a caloria total daquela opção específica.
         4. SEPARAÇÃO: Pule DUAS LINHAS entre cada bloco de horário para uma leitura limpa.
 
+          [MANDAMENTOS DE PRECISÃO]
+        - MANDAMENTO 1: Antes de gerar o QUADRO DE MACROS, realize a soma matemática duas vezes. 
+        - MANDAMENTO 2: O total de calorias diárias deve estar próximo ao valor de ${caloriasFinais} kcal. Ajuste as quantidades de arroz/feijão/aveia se necessário para atingir essa meta.
+        - MANDAMENTO 3: PROIBIDO símbolos matemáticos genéricos. Macros em **Negrito**.
+
+
 DIRETRIZES DE ATENDIMENTO:
 FASE 1 (O DIAGNÓSTICO):
 - SAUDAÇÃO: "Fala, ${nome}! Analisei seu perfil. Vamos transformar esse físico com inteligência."
