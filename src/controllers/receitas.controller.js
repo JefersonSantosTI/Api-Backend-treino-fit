@@ -2,6 +2,7 @@ import Usuario from "../controllers/Usuario.js"
 import obterRespostaReceitas from "../services/openai.service.js";
 import gerarDadosTreino from "../services/geradorTreinoIA.js"; 
 
+// --- 1. CHAT DE RECEITAS ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual, perfilExtraido } = req.body;
@@ -17,7 +18,6 @@ export const perguntaReceita = async (req, res) => {
             user = new Usuario({ WhatsApp: whatsLimpo, nome: "Guerreiro(a)", pago: false, historico: [] });
         }
 
-        // --- BUSCA DE DADOS ---
         const NOME_FINAL = perfilExtraido?.nome || user.nome || "Guerreiro(a)";
         const PESO_FINAL = Number(perfilExtraido?.peso || user.peso || user.dadosBiometricos?.peso || 75);
         const ALTURA_FINAL = Number(perfilExtraido?.altura || user.altura || user.dadosBiometricos?.altura || 1.75);
@@ -86,29 +86,20 @@ export const gerarTreinoIA = async (req, res) => {
     }
 };
 
-// --- 3. DADOS DO USUÁRIO (RESOLVE O ERRO 404) ---
+// --- 3. DADOS DO USUÁRIO ---
 export const obterDadosUsuario = async (req, res) => {
   try {
     const { whatsapp } = req.params;
     const whatsLimpo = String(whatsapp).replace(/\D/g, "");
     
-    // Busca flexível para garantir que encontre o usuário
     const usuario = await Usuario.findOne({ WhatsApp: whatsLimpo }) || await Usuario.findOne({ whatsapp: whatsLimpo });
     
     if (!usuario) {
-        // Em vez de 404, retornamos um objeto padrão para o Front-end não quebrar
         return res.status(200).json({
-            nome: "Guerreiro(a)",
-            peso: 0,
-            altura: 0,
-            idade: 25,
-            meta: "Emagrecimento",
-            pago: false,
-            novo: true
+            nome: "Guerreiro(a)", peso: 0, altura: 0, idade: 25, meta: "Emagrecimento", pago: false, novo: true
         });
     }
     
-    // Retorna os dados buscando tanto na raiz quanto no objeto dadosBiometricos (que vimos no seu MongoDB)
     return res.status(200).json({
         nome: usuario.nome || "Guerreiro",
         peso: usuario.peso || usuario.dadosBiometricos?.peso || 0,
@@ -118,32 +109,99 @@ export const obterDadosUsuario = async (req, res) => {
         pago: usuario.pago || false
       });
   } catch (err) {
-    return res.status(500).json({ erro: "Erro interno ao buscar usuário" });
+    return res.status(500).json({ erro: "Erro interno" });
   }
 };
 
-// --- 4. HISTÓRICO (MANTIDO) ---
+// --- 4. ATUALIZAR ONBOARDING ---
+export const atualizarDadosOnboarding = async (req, res) => {
+    try {
+        const { whatsapp, nome, peso, altura, meta, idade } = req.body;
+        const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
+
+        const usuario = await Usuario.findOneAndUpdate(
+            { WhatsApp: whatsappLimpo },
+            { 
+                $set: { 
+                    nome, 
+                    peso: Number(peso), 
+                    altura: Number(altura), 
+                    idade: Number(idade), 
+                    meta,
+                    WhatsApp: whatsappLimpo
+                } 
+            },
+            { upsert: true, new: true }
+        );
+        res.status(200).json({ mensagem: "Sucesso", usuario });
+    } catch (err) {
+        res.status(500).json({ erro: "Erro ao salvar" });
+    }
+};
+
+// --- 5. HISTÓRICO ---
 export const obterHistorico = async (req, res) => {
     try {
         const { whatsapp } = req.params;
         const user = await Usuario.findOne({ WhatsApp: String(whatsapp).replace(/\D/g, "") });
         res.json(user ? user.historico : []);
     } catch (err) {
-        res.status(500).json({ erro: "Erro ao carregar histórico" });
+        res.status(500).json({ erro: "Erro ao carregar" });
     }
 };
 
-// --- 5. ATIVAÇÃO VIP (MANTIDO) ---
+// --- 6. ATIVAÇÃO VIP MANUAL ---
 export const tornarVip = async (req, res) => {
     try {
-        const { whatsapp } = req.body;
-        await Usuario.findOneAndUpdate(
-            { WhatsApp: String(whatsapp).replace(/\D/g, "") }, 
-            { pago: true }
-        );
-        res.json({ sucesso: true });
+        const { whatsapp, codigo } = req.body;
+        const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
+
+        if (codigo === "LIBERAR2026") {
+            await Usuario.findOneAndUpdate({ WhatsApp: whatsappLimpo }, { pago: true });
+            return res.json({ sucesso: true, mensagem: "💎 VIP Ativado!" });
+        }
+        res.status(401).json({ erro: "Código inválido" });
     } catch (err) {
         res.status(500).json({ erro: "Erro ao ativar VIP" });
     }
-    
+};
+
+// --- 7. WEBHOOK KIWIFY (ATUALIZADO) ---
+export const webhookKiwify = async (req, res) => {
+    try {
+        const { order_status, customer, Customer } = req.body;
+        const cliente = customer || Customer;
+        const status = order_status || req.body.status;
+
+        if (status === 'paid' || status === 'approved') {
+            const emailCliente = cliente.email;
+            const whatsappBruto = cliente.mobile || "";
+            const whatsappLimpo = whatsappBruto.replace(/\D/g, "");
+
+            // Tenta atualizar pelo WhatsApp ou pelo E-mail
+            const usuario = await Usuario.findOneAndUpdate(
+                { $or: [{ WhatsApp: whatsappLimpo }, { email: emailCliente }] },
+                { 
+                    $set: { 
+                        pago: true,
+                        nome: cliente.full_name || cliente.name,
+                        email: emailCliente,
+                        dataPagamento: new Date(),
+                        expiraEm: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 ano
+                    } 
+                },
+                { new: true }
+            );
+
+            if (usuario) {
+                console.log(`✅ VIP liberado para: ${emailCliente}`);
+                return res.status(200).json({ status: "sucesso" });
+            }
+            console.warn(`⚠️ Cliente ${emailCliente} pagou mas não tinha cadastro prévio.`);
+        }
+        return res.status(200).send("Recebido");
+    } catch (err) {
+        console.error("❌ Erro Webhook:", err.message);
+        return res.status(500).send("Erro");
+    }
 };

@@ -4,12 +4,12 @@ import {
   tornarVip, 
   obterHistorico, 
   obterDadosUsuario,
-  gerarTreinoIA 
+  gerarTreinoIA,
+  webhookKiwify,
+  atualizarDadosOnboarding // Adicionei esta para o onboarding
 } from '../controllers/receitas.controller.js';
 
 const router = express.Router();
-
-// O prefixo "/api" já vem do server.js, então aqui você define o resto:
 
 // 1. CHAT (URL final: /api/receitas/perguntar)
 router.post('/receitas/perguntar', perguntaReceita);
@@ -18,11 +18,16 @@ router.post('/receitas/perguntar', perguntaReceita);
 router.get('/receitas/historico/:whatsapp', obterHistorico);
 
 // 3. DADOS (URL final: /api/usuarios/:whatsapp)
-// CUIDADO: Se você já definiu esta rota no server.js, apague uma das duas!
 router.get('/usuarios/:whatsapp', obterDadosUsuario);
 
-// 4. VIP e TREINO
+// 4. ONBOARDING (URL final: /api/usuarios/atualizar)
+router.post('/usuarios/atualizar', atualizarDadosOnboarding);
+
+// 5. VIP e TREINO
 router.post('/usuarios/ativar-vip', tornarVip);
-router.post('/usuarios/gerar-treino-ia', gerarTreinoIA); 
+router.post('/usuarios/gerar-treino-ia', gerarTreinoIA);
+
+// 6. WEBHOOK KIWIFY (URL final: /api/webhook-kiwify)
+router.post('/webhook-kiwify', webhookKiwify);
 
 export default router;
