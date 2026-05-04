@@ -131,7 +131,7 @@ export const atualizarDadosOnboarding = async (req, res) => {
                     WhatsApp: whatsappLimpo
                 } 
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' } // Corrigido para evitar o aviso do Mongoose
         );
         res.status(200).json({ mensagem: "Sucesso", usuario });
     } catch (err) {
@@ -157,7 +157,7 @@ export const tornarVip = async (req, res) => {
         const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
 
         if (codigo === "LIBERAR2026") {
-            await Usuario.findOneAndUpdate({ WhatsApp: whatsappLimpo }, { pago: true });
+            await Usuario.findOneAndUpdate({ WhatsApp: whatsappLimpo }, { pago: true }, { returnDocument: 'after' });
             return res.json({ sucesso: true, mensagem: "💎 VIP Ativado!" });
         }
         res.status(401).json({ erro: "Código inválido" });
@@ -166,19 +166,23 @@ export const tornarVip = async (req, res) => {
     }
 };
 
-// --- 7. WEBHOOK KIWIFY (ATUALIZADO) ---
+// --- 7. WEBHOOK KIWIFY (FINALIZADO PARA WHATSAPP) ---
 export const webhookKiwify = async (req, res) => {
     try {
-        const { order_status, customer, Customer } = req.body;
+        const { order_status, customer, Customer, status: statusRaiz } = req.body;
         const cliente = customer || Customer;
-        const status = order_status || req.body.status;
+        const status = order_status || statusRaiz;
 
+        // Verifica se o pagamento foi aprovado
         if (status === 'paid' || status === 'approved') {
             const emailCliente = cliente.email;
+            // Prioridade total ao número de WhatsApp que a Kiwify envia
             const whatsappBruto = cliente.mobile || "";
             const whatsappLimpo = whatsappBruto.replace(/\D/g, "");
 
-            // Tenta atualizar pelo WhatsApp ou pelo E-mail
+            console.log(`📡 Processando Webhook para WhatsApp: ${whatsappLimpo} ou E-mail: ${emailCliente}`);
+
+            // Busca por WhatsApp primeiro, depois E-mail
             const usuario = await Usuario.findOneAndUpdate(
                 { $or: [{ WhatsApp: whatsappLimpo }, { email: emailCliente }] },
                 { 
@@ -187,21 +191,23 @@ export const webhookKiwify = async (req, res) => {
                         nome: cliente.full_name || cliente.name,
                         email: emailCliente,
                         dataPagamento: new Date(),
-                        expiraEm: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 ano
+                        expiraEm: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) 
                     } 
                 },
-                { new: true }
+                { returnDocument: 'after' } // Resolve o Warning do Mongoose
             );
 
             if (usuario) {
-                console.log(`✅ VIP liberado para: ${emailCliente}`);
+                console.log(`✅ VIP liberado com sucesso para: ${whatsappLimpo || emailCliente}`);
                 return res.status(200).json({ status: "sucesso" });
             }
-            console.warn(`⚠️ Cliente ${emailCliente} pagou mas não tinha cadastro prévio.`);
+            
+            console.warn(`⚠️ Pagamento aprovado, mas usuário não encontrado no App. WhatsApp: ${whatsappLimpo}, E-mail: ${emailCliente}`);
         }
-        return res.status(200).send("Recebido");
+        
+        return res.status(200).send("OK");
     } catch (err) {
-        console.error("❌ Erro Webhook:", err.message);
+        console.error("❌ Erro no processamento do Webhook:", err.message);
         return res.status(500).send("Erro");
     }
 };
