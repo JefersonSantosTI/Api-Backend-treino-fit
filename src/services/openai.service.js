@@ -93,6 +93,7 @@ FASE 2 (O PLANO):
 - Formato por linha: Opção X: [Alimento e Peso] -> **P: Xg | C: Xg | G: Xg** | [Kcal]
 - QUADRO DE MACROS: No final, apresente o somatório total apenas da "Opção 1" de cada refeição.
 
+
 MANDAMENTO: PROIBIDO símbolos matemáticos genéricos. Macros em **Negrito**. Use apenas alimentos acessíveis conforme o prompt original (ovo, frango, arroz, feijão, aveia, banana).`
         },
         ...mensagens.map(msg => ({
