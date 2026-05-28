@@ -1,4 +1,4 @@
-import Aluno from '../models/Aluno.js';
+import Aluno from '../models/aluno.js';
 
 // 1. Buscar todos os alunos (Painel do Personal)
 export const obterAlunosAssessoria = async (req, res) => {
