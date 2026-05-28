@@ -129,3 +129,46 @@ export const deletarAluno = async (req, res) => {
     res.status(500).json({ mensagem: 'Erro ao deletar aluno.', erro: error.message });
   }
 };
+
+// ✅ PASSO 1: Função que recebe os dados do link e aciona a IA
+export const matricularViaLinkIA = async (req, res) => {
+  try {
+    const { nome, whatsapp, peso, altura, idade, genero, objetivo, personalRef } = req.body;
+
+    // 1. Validação básica
+    if (!nome || !whatsapp) {
+      return res.status(400).json({ mensagem: "Nome e WhatsApp são obrigatórios." });
+    }
+
+    const existe = await Aluno.findOne({ whatsapp });
+    if (existe) {
+      return res.status(400).json({ mensagem: "Este WhatsApp já possui cadastro." });
+    }
+
+    // 2. AQUI A MÁGICA ACONTECE (Integração com a IA)
+    // Aqui você conectará a sua função de IA geradora. 
+    // Por enquanto, geramos um esqueleto inteligente com base nos dados reais do aluno.
+    const treinoGeradoPelaIA = [
+      { nome: "Aquecimento Articular Geral", series: 1, reps: "5 min", obs: "Preparação gerada pela IA." },
+      { nome: objetivo === 'Emagrecimento' ? "HIIT na Esteira" : "Agachamento com Barra", series: 4, reps: "12", obs: `Foco total em ${objetivo} para o perfil de ${peso}kg.` },
+      { nome: "Prancha Abdominal", series: 3, reps: "45 seg", obs: "Manter respiração controlada." }
+    ];
+
+    // 3. Salvar no Banco como Rascunho para o Personal revisar
+    const novoAluno = new Aluno({
+      nome, 
+      whatsapp, 
+      objetivo: objetivo || 'Emagrecimento',
+      statusTreino: 'Rascunho IA', // ⚠️ O Segredo: Fica laranja no painel do Personal!
+      statusConta: 'Ativo',
+      treinoPrescrito: treinoGeradoPelaIA, 
+      checkins: []
+    });
+
+    await novoAluno.save();
+    res.status(201).json({ mensagem: "Análise da IA concluída e aluno cadastrado!", aluno: novoAluno });
+
+  } catch (error) {
+    res.status(500).json({ mensagem: "Erro ao processar IA.", erro: error.message });
+  }
+};

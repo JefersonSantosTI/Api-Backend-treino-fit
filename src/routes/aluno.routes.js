@@ -1,15 +1,24 @@
 import { Router } from 'express';
 import {
-  criarAluno, // ✅ ADICIONADO: Importando a função de criar
+  criarAluno,
   obterAlunosAssessoria,
   loginAluno,
   prescreverTreino,
   registrarCheckin,
   atualizarStatusConta,
-  deletarAluno
+  deletarAluno,
+  matricularViaLinkIA // 👈 1. Importe a função nova aqui
 } from '../controllers/aluno.controller.js';
 
 const router = Router();
+
+router.post('/aluno', criarAluno);
+
+// 👈 2. Adicione esta Rota NOVA para o formulário do link
+router.post('/aluno/matricula-ia', matricularViaLinkIA); 
+
+// ... (mantenha o resto das rotas que já lá estão)
+export default router;
 
 // ✅ ADICIONADO: Rota para o Personal cadastrar o aluno
 router.post('/aluno', criarAluno);
