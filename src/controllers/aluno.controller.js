@@ -1,5 +1,36 @@
 import Aluno from '../models/aluno.js';
 
+// ✅ NOVO: Função para o Personal Cadastrar o Aluno no banco
+export const criarAluno = async (req, res) => {
+  try {
+    const { nome, whatsapp, objetivo } = req.body;
+    
+    if (!nome || !whatsapp) {
+      return res.status(400).json({ mensagem: 'Nome e WhatsApp são obrigatórios.' });
+    }
+
+    const existe = await Aluno.findOne({ whatsapp });
+    if (existe) {
+      return res.status(400).json({ mensagem: 'Este WhatsApp já está cadastrado na assessoria.' });
+    }
+
+    const novoAluno = new Aluno({ 
+      nome, 
+      whatsapp, 
+      objetivo: objetivo || 'Emagrecimento',
+      statusTreino: 'Pendente',
+      statusConta: 'Ativo',
+      treinoPrescrito: [],
+      checkins: []
+    });
+    
+    await novoAluno.save();
+    res.status(201).json(novoAluno);
+  } catch (error) {
+    res.status(500).json({ mensagem: 'Erro ao criar aluno.', erro: error.message });
+  }
+};
+
 // 1. Buscar todos os alunos (Painel do Personal)
 export const obterAlunosAssessoria = async (req, res) => {
   try {
