@@ -1,4 +1,4 @@
-import Personal from '../models/personal.model.js';
+import Personal from './Personal.js'; // FIX: Ajustado para o nome real com 'P' maiúsculo e mesma pasta
 import Usuario from './Usuario.js';
 import obterRespostaReceitas from '../services/openai.service.js';
 import gerarDadosTreino from '../services/geradorTreinoIA.js';
@@ -44,9 +44,6 @@ export const listarAlunosDoPersonal = async (req, res) => {
 };
 
 // 3. FLUXO DE ONBOARDING DO ALUNO VIA LINK DE CONVITE DO PERSONAL
-// Quando o aluno preencher o onboarding vindo do link do Personal, a IA já roda em segundo plano!
-// ... continuação de src/controllers/personal.controller.js
-
 export const onboardingAlunoDoPersonal = async (req, res) => {
     try {
         const { whatsapp, nome, peso, altura, idade, meta, genero, personalId } = req.body;
