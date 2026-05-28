@@ -1,4 +1,4 @@
-import Aluno from '../models/Aluno.js';
+import Aluno from '../controllers/Aluno.js';
 
 // ✅ NOVO: Função para o Personal Cadastrar o Aluno no banco
 export const criarAluno = async (req, res) => {
