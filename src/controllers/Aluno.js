@@ -22,4 +22,5 @@ const AlunoSchema = new mongoose.Schema({
   checkins: [CheckinSchema]
 }, { timestamps: true });
 
-export default mongoose.model('Aluno', AlunoSchema);
+// Força o mongoose a usar e criar a coleção isolada "alunos" no banco de dados
+export default mongoose.model('Aluno', AlunoSchema, 'alunos');
