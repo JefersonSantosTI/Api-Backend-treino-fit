@@ -1,6 +1,7 @@
 import Aluno from '../controllers/Aluno.js';
+import obterRespostaReceitas from '../services/openai.service.js'; // ✅ Importando a nossa IA Inteligente
 
-// ✅ NOVO: Função para o Personal Cadastrar o Aluno no banco
+// ✅ 1. Função para o Personal Cadastrar o Aluno manualmente (sem IA)
 export const criarAluno = async (req, res) => {
   try {
     const { nome, whatsapp, objetivo } = req.body;
@@ -21,6 +22,7 @@ export const criarAluno = async (req, res) => {
       statusTreino: 'Pendente',
       statusConta: 'Ativo',
       treinoPrescrito: [],
+      dietaPrescrita: [],
       checkins: []
     });
     
@@ -31,7 +33,7 @@ export const criarAluno = async (req, res) => {
   }
 };
 
-// 1. Buscar todos os alunos (Painel do Personal)
+// 2. Buscar todos os alunos (Módulo Treinador)
 export const obterAlunosAssessoria = async (req, res) => {
   try {
     const alunos = await Aluno.find().sort({ updatedAt: -1 });
@@ -41,13 +43,12 @@ export const obterAlunosAssessoria = async (req, res) => {
   }
 };
 
-// 2. Login do Aluno pelo Nome
+// 3. Login do Aluno pelo Nome (Módulo Aluno)
 export const loginAluno = async (req, res) => {
   try {
     const { nome } = req.query;
     if (!nome) return res.status(400).json({ mensagem: 'Parâmetro nome é obrigatório.' });
 
-    // Busca ignorando maiúsculas/minúsculas
     const aluno = await Aluno.findOne({ nome: { $regex: new RegExp(`^${nome}$`, 'i') } });
     
     if (!aluno) return res.status(404).json({ mensagem: 'Aluno não encontrado.' });
@@ -57,16 +58,18 @@ export const loginAluno = async (req, res) => {
   }
 };
 
-// 3. Prescrever Treino (Personal monta e envia)
+// 4. Prescrever Treino e Dieta (Personal monta e envia)
 export const prescreverTreino = async (req, res) => {
   try {
     const { id } = req.params;
-    const { treinoPrescrito } = req.body;
+    // ✅ Agora o painel do Personal envia Treino E Dieta
+    const { treinoPrescrito, dietaPrescrita } = req.body; 
 
     const alunoAtualizado = await Aluno.findByIdAndUpdate(
       id,
       { 
         treinoPrescrito, 
+        dietaPrescrita, // ✅ Salvando a Dieta editada pelo Personal
         statusTreino: 'Enviado' 
       },
       { new: true }
@@ -75,11 +78,11 @@ export const prescreverTreino = async (req, res) => {
     if (!alunoAtualizado) return res.status(404).json({ mensagem: 'Aluno não encontrado.' });
     res.status(200).json(alunoAtualizado);
   } catch (error) {
-    res.status(500).json({ mensagem: 'Erro ao salvar treino.', erro: error.message });
+    res.status(500).json({ mensagem: 'Erro ao salvar plano.', erro: error.message });
   }
 };
 
-// 4. Registrar Check-in (Aluno confirma que treinou)
+// 5. Registrar Check-in (Aluno confirma que treinou)
 export const registrarCheckin = async (req, res) => {
   try {
     const { id } = req.params;
@@ -88,11 +91,9 @@ export const registrarCheckin = async (req, res) => {
     const aluno = await Aluno.findById(id);
     if (!aluno) return res.status(404).json({ mensagem: 'Aluno não encontrado.' });
 
-    // Evita duplicidade de check-in no mesmo dia
     const jaFezCheckin = aluno.checkins.some(c => c.data === data);
     if (jaFezCheckin) return res.status(400).json({ mensagem: 'Check-in de hoje já realizado.' });
 
-    // Adiciona o novo check-in no início do array
     aluno.checkins.unshift({ data, diaSemana });
     await aluno.save();
 
@@ -102,7 +103,7 @@ export const registrarCheckin = async (req, res) => {
   }
 };
 
-// 5. Atualizar Status da Conta (Ativar/Arquivar Aluno)
+// 6. Atualizar Status da Conta (Ativar/Arquivar Aluno)
 export const atualizarStatusConta = async (req, res) => {
   try {
     const { id } = req.params;
@@ -113,11 +114,11 @@ export const atualizarStatusConta = async (req, res) => {
 
     res.status(200).json(alunoAtualizado);
   } catch (error) {
-    res.status(500).json({ mensagem: 'Erro ao atualizar status da conta.', erro: error.message });
+    res.status(500).json({ mensagem: 'Erro ao atualizar status.', erro: error.message });
   }
 };
 
-// 6. Deletar Aluno
+// 7. Deletar Aluno
 export const deletarAluno = async (req, res) => {
   try {
     const { id } = req.params;
@@ -130,12 +131,11 @@ export const deletarAluno = async (req, res) => {
   }
 };
 
-// ✅ PASSO 1: Função que recebe os dados do link e aciona a IA
+// ✅ 8. A MÁGICA: Matrícula via Link com a IA trabalhando nos bastidores
 export const matricularViaLinkIA = async (req, res) => {
   try {
     const { nome, whatsapp, peso, altura, idade, genero, objetivo, personalRef } = req.body;
 
-    // 1. Validação básica
     if (!nome || !whatsapp) {
       return res.status(400).json({ mensagem: "Nome e WhatsApp são obrigatórios." });
     }
@@ -145,30 +145,30 @@ export const matricularViaLinkIA = async (req, res) => {
       return res.status(400).json({ mensagem: "Este WhatsApp já possui cadastro." });
     }
 
-    // 2. AQUI A MÁGICA ACONTECE (Integração com a IA)
-    // Aqui você conectará a sua função de IA geradora. 
-    // Por enquanto, geramos um esqueleto inteligente com base nos dados reais do aluno.
-    const treinoGeradoPelaIA = [
-      { nome: "Aquecimento Articular Geral", series: 1, reps: "5 min", obs: "Preparação gerada pela IA." },
-      { nome: objetivo === 'Emagrecimento' ? "HIIT na Esteira" : "Agachamento com Barra", series: 4, reps: "12", obs: `Foco total em ${objetivo} para o perfil de ${peso}kg.` },
-      { nome: "Prancha Abdominal", series: 3, reps: "45 seg", obs: "Manter respiração controlada." }
-    ];
+    // Aciona a IA passando a flag "personal_ia" para receber o JSON limpo
+    const promptFake = [{ role: "user", content: `Monte o plano completo para o aluno ${nome}.` }];
+    const dadosParaIA = { nome, peso, altura, idade, meta: objetivo };
+    
+    // A IA devolve um objeto { treino: [...], dieta: [...] }
+    const planoGerado = await obterRespostaReceitas(promptFake, dadosParaIA, "personal_ia");
 
-    // 3. Salvar no Banco como Rascunho para o Personal revisar
+    // Salva o aluno já com as sugestões da IA preenchidas!
     const novoAluno = new Aluno({
       nome, 
       whatsapp, 
       objetivo: objetivo || 'Emagrecimento',
-      statusTreino: 'Rascunho IA', // ⚠️ O Segredo: Fica laranja no painel do Personal!
+      statusTreino: 'Rascunho IA', // Balãozinho laranja de alerta para o Personal!
       statusConta: 'Ativo',
-      treinoPrescrito: treinoGeradoPelaIA, 
+      treinoPrescrito: planoGerado.treino || [], 
+      dietaPrescrita: planoGerado.dieta || [], 
       checkins: []
     });
 
     await novoAluno.save();
-    res.status(201).json({ mensagem: "Análise da IA concluída e aluno cadastrado!", aluno: novoAluno });
+    res.status(201).json({ mensagem: "Análise da IA concluída!", aluno: novoAluno });
 
   } catch (error) {
-    res.status(500).json({ mensagem: "Erro ao processar IA.", erro: error.message });
+    console.error("Erro na Matrícula IA:", error);
+    res.status(500).json({ mensagem: "Erro interno da IA ao processar dados corporais.", erro: error.message });
   }
 };
