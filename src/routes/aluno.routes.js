@@ -7,21 +7,16 @@ import {
   registrarCheckin,
   atualizarStatusConta,
   deletarAluno,
-  matricularViaLinkIA // 👈 1. Importe a função nova aqui
+  matricularViaLinkIA
 } from '../controllers/aluno.controller.js';
 
 const router = Router();
 
+// ✅ Rota para o Personal cadastrar o aluno manualmente
 router.post('/aluno', criarAluno);
 
-// 👈 2. Adicione esta Rota NOVA para o formulário do link
+// ✅ Rota NOVA para o formulário do link de Auto-Cadastro com IA
 router.post('/aluno/matricula-ia', matricularViaLinkIA); 
-
-// ... (mantenha o resto das rotas que já lá estão)
-export default router;
-
-// ✅ ADICIONADO: Rota para o Personal cadastrar o aluno
-router.post('/aluno', criarAluno);
 
 // Rotas do Módulo Personal
 router.get('/personal/alunos', obterAlunosAssessoria);
@@ -33,4 +28,5 @@ router.delete('/aluno/:id', deletarAluno);
 router.get('/aluno/login', loginAluno);
 router.post('/aluno/:id/checkin', registrarCheckin);
 
+// ✅ APENAS UM EXPORT AQUI NO FINAL DO ARQUIVO (Isto resolve o erro fatal!)
 export default router;
