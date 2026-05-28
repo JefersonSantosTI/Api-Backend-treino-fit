@@ -8,13 +8,19 @@ const usuarioSchema = new mongoose.Schema({
     expiraEm: Date,
     meta: { type: String, default: "Emagrecimento" },
     
-    // Campos na raiz (O que o seu App.js usa agora)
+    // --- NOVO: CAMPOS PARA SISTEMA MULTI-ABAS (ESTILO MFIT) ---
+    tipoConta: { type: String, enum: ["comum", "aluno"], default: "comum" },
+    personalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Personal', default: null },
+    statusTreino: { type: String, enum: ["nenhum", "rascunho_ia", "enviado_personal"], default: "nenhum" },
+    dietaCustomizada: { type: String, default: "" }, // Armazena a dieta final revisada pelo Personal
+
+    // Campos na raiz
     peso: { type: Number, default: 0 },
     altura: { type: Number, default: 0 },
-    idade: { type: Number, default: 25 }, // Padrão 25 para não zerar TMB
+    idade: { type: Number, default: 25 },
     genero: { type: String, default: "" },
 
-    // Objeto de compatibilidade (Onde os dados do print estão salvos)
+    // Objeto de compatibilidade
     dadosBiometricos: {
         peso: Number,
         altura: Number,
@@ -34,5 +40,4 @@ const usuarioSchema = new mongoose.Schema({
     ]
 }, { timestamps: true });
 
-// MANTEREMOS 'usuários' para não perder os 10 documentos que você já tem
 export default mongoose.model('Usuario', usuarioSchema, 'usuários');

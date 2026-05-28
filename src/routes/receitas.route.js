@@ -6,28 +6,40 @@ import {
   obterDadosUsuario,
   gerarTreinoIA,
   webhookKiwify,
-  atualizarDadosOnboarding // Adicionei esta para o onboarding
+  atualizarDadosOnboarding 
 } from '../controllers/receitas.controller.js';
+
+// Importação das novas rotas do ecossistema Personal
+import { 
+  loginGooglePersonal, 
+  listarAlunosDoPersonal, 
+  onboardingAlunoDoPersonal, 
+  aprovarTreinoEDietaDoPersonal 
+} from '../controllers/personal.controller.js';
 
 const router = express.Router();
 
-// 1. CHAT (URL final: /api/receitas/perguntar)
+// ==========================================
+// 🚀 ROTAS ATUAIS (MANTIDAS 100% INTATAS)
+// ==========================================
 router.post('/receitas/perguntar', perguntaReceita);
-
-// 2. HISTÓRICO (URL final: /api/receitas/historico/:whatsapp)
 router.get('/receitas/historico/:whatsapp', obterHistorico);
-
-// 3. DADOS (URL final: /api/usuarios/:whatsapp)
 router.get('/usuarios/:whatsapp', obterDadosUsuario);
-
-// 4. ONBOARDING (URL final: /api/usuarios/atualizar)
 router.post('/usuarios/atualizar', atualizarDadosOnboarding);
-
-// 5. VIP e TREINO
 router.post('/usuarios/ativar-vip', tornarVip);
 router.post('/usuarios/gerar-treino-ia', gerarTreinoIA);
-
-// 6. WEBHOOK KIWIFY (URL final: /api/webhook-kiwify)
 router.post('/webhook-kiwify', webhookKiwify);
+
+// ==========================================
+// 🎛️ NOVAS ROTAS PORTAL PERSONAL & ALUNO (ESTILO MFIT)
+// ==========================================
+
+// Autenticação e painel do Personal
+router.post('/personal/auth-google', loginGooglePersonal);
+router.get('/personal/:personalId/alunos', listarAlunosDoPersonal);
+
+// Cadastro de Aluno vindo do link do Personal e Aprovação do Treino
+router.post('/personal/aluno-onboarding', onboardingAlunoDoPersonal);
+router.post('/personal/aprovar-plano', aprovarTreinoEDietaDoPersonal);
 
 export default router;
