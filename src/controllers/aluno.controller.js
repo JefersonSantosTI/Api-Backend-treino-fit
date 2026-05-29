@@ -1,4 +1,4 @@
-import Aluno from '../models/Aluno.js';
+import Aluno from '../controllers/Aluno.js';
 import obterRespostaReceitas from '../services/openai.service.js';
 
 export const criarAluno = async (req, res) => {
