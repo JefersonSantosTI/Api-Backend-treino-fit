@@ -21,14 +21,14 @@ export const obterAlunosAssessoria = async (req, res) => {
   try {
     const alunos = await Aluno.find().sort({ updatedAt: -1 });
     res.status(200).json(alunos);
-  } catch (error) { res.status(500).json({ mensagem: 'Erro.', erro: error.message }); }
+  } catch (error) { res.status(500).json({ message: 'Erro.', erro: error.message }); }
 };
 
 export const loginAluno = async (req, res) => {
   try {
     const { nome } = req.query;
     if (!nome) return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
-    const aluno = await Aluno.findOne({ nome: { $regex: new RegExp(`^${nome}$`, 'i') } });
+    const aluno = await Aluno.findOne({ nome: { $regex: new RegExp(`^${nome.trim()}$`, 'i') } });
     if (!aluno) return res.status(404).json({ mensagem: 'Não encontrado.' });
     res.status(200).json(aluno);
   } catch (error) { res.status(500).json({ erro: error.message }); }
@@ -37,13 +37,12 @@ export const loginAluno = async (req, res) => {
 export const prescreverTreino = async (req, res) => {
   try {
     const { id } = req.params;
-    // ✅ AGORA RECEBE A ÁGUA TAMBÉM
     const { treinoSemanal, dietaPrescrita, metaAgua } = req.body; 
-const alunoAtualizado = await Aluno.findByIdAndUpdate(
-  id,
-  { treinoSemanal, dietaPrescrita, metaAgua, statusTreino: 'Enviado' },
-  { new: true }
-);
+    const alunoAtualizado = await Aluno.findByIdAndUpdate(
+      id,
+      { treinoSemanal, dietaPrescrita, metaAgua, statusTreino: 'Enviado' },
+      { new: true }
+    );
     if (!alunoAtualizado) return res.status(404).json({ mensagem: 'Não encontrado.' });
     res.status(200).json(alunoAtualizado);
   } catch (error) { res.status(500).json({ erro: error.message }); }
@@ -54,7 +53,7 @@ export const registrarCheckin = async (req, res) => {
     const { id } = req.params;
     const { data, diaSemana } = req.body;
     const aluno = await Aluno.findById(id);
-    if (!aluno) return res.status(404).json({ mensagem: 'Não encontrado.' });
+    if (!aluno) return res.status(404).json({ window: 'Não encontrado.' });
     const jaFezCheckin = aluno.checkins.some(c => c.data === data);
     if (jaFezCheckin) return res.status(400).json({ mensagem: 'Check-in já realizado.' });
 
@@ -81,25 +80,30 @@ export const deletarAluno = async (req, res) => {
   } catch (error) { res.status(500).json({ erro: error.message }); }
 };
 
+// ✅ ATUALIZADO: Processando a Anamnese de Elite Completa vinda do Link da IA
 export const matricularViaLinkIA = async (req, res) => {
   try {
-    const { nome, whatsapp, peso, altura, idade, genero, objetivo } = req.body;
+    const { nome, whatsapp, peso, altura, idade, genero, objetivo, nivel, diasTreino, restricoes, lesoes } = req.body;
     if (!nome || !whatsapp) return res.status(400).json({ mensagem: "Obrigatório." });
     const existe = await Aluno.findOne({ whatsapp });
     if (existe) return res.status(400).json({ mensagem: "Já possui cadastro." });
 
     const promptFake = [{ role: "user", content: `Monte o plano completo para o aluno ${nome}.` }];
-    const dadosParaIA = { nome, peso, altura, idade, meta: objetivo };
     
-    // A IA DEVOLVE: { treino, dieta, agua }
+    // Injetando os novos parâmetros estruturados na IA Core do Treino Fit
+    const dadosParaIA = { nome, peso, altura, idade, meta: objetivo, genero, nivel, diasTreino, restricoes, lesoes };
+    
+    // O motor gera a estrutura robusta: { treinoSemanal, dieta, agua }
     const planoGerado = await obterRespostaReceitas(promptFake, dadosParaIA, "personal_ia");
 
     const novoAluno = new Aluno({
       nome, whatsapp, objetivo: objetivo || 'Emagrecimento', statusTreino: 'Rascunho IA', statusConta: 'Ativo',
-      treinoSemanal: planoGerado.treinoSemanal || [], // ✅ Vincula o treino por dias gerado pela IA
+      treinoSemanal: planoGerado.treinoSemanal || [], 
       dietaPrescrita: planoGerado.dieta || [], 
       metaAgua: planoGerado.agua || 'Calculando...',
-      checkins: []
+      checkins: [],
+      // Preservando os dados preenchidos no banco de dados para o Personal ler na planilha
+      genero, nivel, diasTreino, restricoes, lesoes, peso, altura, idade
     });
     
     await novoAluno.save();

@@ -12,10 +12,13 @@ import {
 
 const router = Router();
 
+// ✅ MÓDULO ALUNO: Rota de login movida para o topo para sanar erros de correspondência (404)
+router.get('/aluno/login', loginAluno);
+
 // ✅ Rota para o Personal cadastrar o aluno manualmente
 router.post('/aluno', criarAluno);
 
-// ✅ Rota NOVA para o formulário do link de Auto-Cadastro com IA
+// ✅ Rota para o formulário do link de Auto-Cadastro com IA e Anamnese de Elite
 router.post('/aluno/matricula-ia', matricularViaLinkIA); 
 
 // Rotas do Módulo Personal
@@ -24,9 +27,8 @@ router.post('/aluno/:id/prescrever', prescreverTreino);
 router.put('/aluno/:id/status', atualizarStatusConta);
 router.delete('/aluno/:id', deletarAluno);
 
-// Rotas do Módulo Aluno
-router.get('/aluno/login', loginAluno);
+// Sincronização do painel do aluno
 router.post('/aluno/:id/checkin', registrarCheckin);
 
-// ✅ APENAS UM EXPORT AQUI NO FINAL DO ARQUIVO (Isto resolve o erro fatal!)
+// ✅ APENAS UM EXPORT NO FINAL DO ARQUIVO
 export default router;
