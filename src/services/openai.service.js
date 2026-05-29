@@ -8,37 +8,83 @@ const openai = new OpenAI({
 
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}, contexto = "usuario_final") {
   try {
-    // 1. EXTRAÇÃO E CONVERSÃO
+    // 1. EXTRAÇÃO E CONVERSÃO (AGORA COM ANAMNESE ELITE)
     const peso = Number(dadosUsuario.peso || 70);
     const altura = Number(dadosUsuario.altura || 1.70);
     const idade = Number(dadosUsuario.idade || 25);
     const nome = dadosUsuario.nome || "Guerreiro(a)";
     const meta = dadosUsuario.meta || "Emagrecimento";
+    
+    // Novos campos da Anamnese
+    const genero = dadosUsuario.genero || "Masculino";
+    const nivel = dadosUsuario.nivel || "Intermediário";
+    const diasTreino = dadosUsuario.diasTreino || "5";
+    const restricoes = dadosUsuario.restricoes || "Nenhuma";
+    const lesoes = dadosUsuario.lesoes || "Nenhuma";
 
-    // 2. CÁLCULOS TÉCNICOS AVANÇADOS
-    const tmb = (10 * peso) + (6.25 * (altura * 100)) - (5 * idade) + 5;
+    // 2. CÁLCULOS TÉCNICOS AVANÇADOS (Correção Biológica de Gênero)
+    let tmb = (10 * peso) + (6.25 * (altura * 100)) - (5 * idade);
+    // Ajuste da Equação de Mifflin-St Jeor com base no gênero
+    if (genero.toLowerCase() === "feminino") {
+      tmb -= 161;
+    } else {
+      tmb += 5;
+    }
+    
     const imc = (peso / (altura * altura)).toFixed(1);
     
-    // ✅ SUA LÓGICA DE ÁGUA IMPLEMENTADA AQUI (60ml para secar, 50ml para crescer)
+    // ÁGUA
     const multiplicadorAgua = meta.toLowerCase().includes("emagrecimento") ? 60 : 50;
     const litrosAgua = ((peso * multiplicadorAgua) / 1000).toFixed(1);
 
+    // GASTO ENERGÉTICO E CALORIAS
     const fatorAtividade = meta.toLowerCase().includes("hipertrofia") ? 1.55 : 1.2;
     const get = (tmb * fatorAtividade).toFixed(0);
     const caloriasFinais = meta.toLowerCase().includes("hipertrofia") ? (Number(get) + 500) : (Number(get) - 500);
 
+    // 🔥 CÁLCULO MATEMÁTICO DE MACRONUTRIENTES PARA A IA DO PERSONAL
+    const proteinaAlvo = (peso * 2.0).toFixed(0); // 2g de proteína por kg corporal
+    const gorduraAlvo = (peso * 0.8).toFixed(0); // 0.8g de gordura por kg corporal
+    const kcalSobra = caloriasFinais - (proteinaAlvo * 4) - (gorduraAlvo * 9);
+    const carboAlvo = (kcalSobra > 0 ? (kcalSobra / 4) : 50).toFixed(0); // O restante das calorias vira carboidrato
+
     let promptDoSistema = "";
 
     // ---------------------------------------------------------
-    // MODO 1: ASSISTENTE DO PERSONAL (Devolve Estrutura JSON com ÁGUA)
+    // MODO 1: ASSISTENTE DO PERSONAL (IA ULTRA INTELIGENTE)
     // ---------------------------------------------------------
     if (contexto === "personal_ia") {
-      promptDoSistema = `Você é um Assistente Técnico para Personal Trainers e Nutricionistas.
-      DADOS DO ALUNO: Nome: ${nome}, Peso: ${peso}kg, Altura: ${altura}m, Idade: ${idade}, Objetivo: ${meta}. TMB: ${tmb.toFixed(0)}kcal. Calorias Alvo: ${caloriasFinais}kcal.
-      HIDRATAÇÃO EXATA DO SISTEMA: ${litrosAgua} Litros/dia (Usando regra de ${multiplicadorAgua}ml/kg).
-      
-      SUA MISSÃO: Retornar EXATAMENTE um objeto JSON válido contendo o treino estruturado de Segunda a Sexta, a dieta e a meta de água.
-      
+      promptDoSistema = `Você é o "Treino Fit IA Core", o assistente técnico Esportivo e Nutricional mais avançado do mercado para Personal Trainers de Elite.
+      Sua missão é gerar prescrições de treinamento e nutrição cientificamente precisas, sem repetições monótonas, prontas para o Personal revisar e aprovar com um clique.
+
+      📋 ANAMNESE COMPLETA DO ALUNO:
+      - Nome: ${nome} | Gênero: ${genero} | Idade: ${idade} anos | Peso: ${peso}kg | Altura: ${altura}m
+      - Objetivo Principal: ${meta}
+      - Nível de Experiência: ${nivel}
+      - Disponibilidade: ${diasTreino} dias na semana
+      - Restrições Alimentares: ${restricoes}
+      - Lesões ou Dores: ${lesoes}
+
+      📊 METABOLISMO E ALVOS DIÁRIOS:
+      - TMB: ${tmb.toFixed(0)} kcal | GET: ${get} kcal
+      - Meta Calórica Prescrita: ${caloriasFinais} kcal
+      - Hidratação Exata: ${litrosAgua} Litros/dia (${multiplicadorAgua}ml/kg)
+      - Macros Alvo -> Proteínas: ${proteinaAlvo}g | Gorduras: ${gorduraAlvo}g | Carboidratos: ${carboAlvo}g
+
+      ⚠️ REGRAS DE PRESCRIÇÃO - PADRÃO ELITE:
+      1. TREINO (SEGURANÇA E PERIODIZAÇÃO): 
+         - Crie o treino EXATAMENTE para ${diasTreino} dias na semana. Não crie dias extras.
+         - Adapte a dificuldade e volume para o nível ${nivel}.
+         - É ESTRITAMENTE PROIBIDO receitar exercícios que agravem a condição: "${lesoes}". Substitua por exercícios seguros.
+         - Se hipertrofia: exija controle de cadência e inclua métodos avançados (ex: Drop-set, Rest-pause) nas observações.
+         - Se emagrecimento: integre blocos metabólicos ou bi-sets.
+      2. DIETA (PRECISÃO E RESTRIÇÕES): 
+         - Respeite ABSOLUTAMENTE a restrição alimentar: "${restricoes}".
+         - Monte um cardápio diário (4 a 5 refeições) que bata EXATAMENTE os macros calculados acima.
+         - Especifique as quantidades exatas em GRAMAS (ex: 150g frango, 100g arroz).
+      3. RETORNO ESTRITO EM JSON: 
+         - Você DEVE retornar EXATAMENTE um objeto JSON válido. Nenhum caractere markdown (\`\`\`json) ou texto fora das chaves.
+
       ESTRUTURA JSON OBRIGATÓRIA:
       {
         "agua": "${litrosAgua} Litros/dia",
@@ -46,25 +92,14 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
           {
             "dia": "Segunda",
             "exercicios": [
-              { "nome": "Agachamento Livre", "series": 4, "reps": "12", "obs": "Foco na amplitude" }
-            ]
-          },
-          {
-            "dia": "Terça",
-            "exercicios": [
-              { "nome": "Supino Reto", "series": 4, "reps": "10", "obs": "Controlar a descida" }
+              { "nome": "Nome do Exercício", "series": 4, "reps": "10-12", "obs": "Instrução técnica (ex: 60s descanso, cadência 3010)" }
             ]
           }
         ],
         "dieta": [
-          { "refeicao": "Café da Manhã", "itens": "2 ovos + 30g de aveia (Aprox. 300kcal)" }
+          { "refeicao": "Café da Manhã", "itens": "Qtd exata + Alimento (Aprox. X kcal - P:Xg, C:Xg, G:Xg)" }
         ]
-      }
-      
-      REGRAS:
-      - treinoSemanal: Monte uma divisão de treino coerente de Segunda a Sexta-feira focada no objetivo de ${meta}.
-      - Dieta: Crie 4 refeições batendo as calorias de ${caloriasFinais}kcal.
-      - Água: Utilize EXATAMENTE o valor de ${litrosAgua} Litros passado nos dados do sistema.`;
+      }`;
     }
     // ---------------------------------------------------------
     // MODO 2: O SEU PROMPT ORIGINAL INTACTO (Para o Chat do Aluno)
@@ -130,7 +165,7 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
     }
 
     const configuracaoRequisicao = {
-      model: "gpt-4o-mini",
+      model: "gpt-4o-mini", // ou gpt-4o se você quiser a máxima inteligência disponível
       messages: [
         { role: "system", content: promptDoSistema },
         ...mensagens.map(msg => ({ role: msg.role, content: String(msg.content || "") }))
