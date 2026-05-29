@@ -38,13 +38,12 @@ export const prescreverTreino = async (req, res) => {
   try {
     const { id } = req.params;
     // ✅ AGORA RECEBE A ÁGUA TAMBÉM
-    const { treinoPrescrito, dietaPrescrita, metaAgua } = req.body; 
-
-    const alunoAtualizado = await Aluno.findByIdAndUpdate(
-      id,
-      { treinoPrescrito, dietaPrescrita, metaAgua, statusTreino: 'Enviado' },
-      { new: true }
-    );
+    const { treinoSemanal, dietaPrescrita, metaAgua } = req.body; 
+const alunoAtualizado = await Aluno.findByIdAndUpdate(
+  id,
+  { treinoSemanal, dietaPrescrita, metaAgua, statusTreino: 'Enviado' },
+  { new: true }
+);
     if (!alunoAtualizado) return res.status(404).json({ mensagem: 'Não encontrado.' });
     res.status(200).json(alunoAtualizado);
   } catch (error) { res.status(500).json({ erro: error.message }); }
@@ -97,12 +96,12 @@ export const matricularViaLinkIA = async (req, res) => {
 
     const novoAluno = new Aluno({
       nome, whatsapp, objetivo: objetivo || 'Emagrecimento', statusTreino: 'Rascunho IA', statusConta: 'Ativo',
-      treinoPrescrito: planoGerado.treino || [], 
+      treinoSemanal: planoGerado.treinoSemanal || [], // ✅ Vincula o treino por dias gerado pela IA
       dietaPrescrita: planoGerado.dieta || [], 
-      metaAgua: planoGerado.agua || 'Calculando...', // ✅ GUARDA NO BANCO
+      metaAgua: planoGerado.agua || 'Calculando...',
       checkins: []
     });
-
+    
     await novoAluno.save();
     res.status(201).json({ mensagem: "Concluído!", aluno: novoAluno });
   } catch (error) { res.status(500).json({ erro: error.message }); }

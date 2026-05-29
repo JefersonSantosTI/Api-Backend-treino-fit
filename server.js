@@ -4,7 +4,8 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import receitasRoutes from "./src/routes/receitas.route.js"; 
-import alunoRoutes from "./src/routes/aluno.routes.js"; // ✅ ADICIONADO: Importando as rotas da assessoria
+import alunoRoutes from "./src/routes/aluno.routes.js"; 
+import personalRoutes from "./src/routes/personal.routes.js"; // ✅ ADICIONADO: Importando as novas rotas do Personal
 
 const app = express();
 
@@ -13,7 +14,7 @@ const allowedOrigins = [
   "https://treinofit.app.br",
   "https://www.treinofit.app.br",
   "https://front-end-api-nv55.onrender.com", 
-  "http://localhost:5173", // Liberado para você testar na sua máquina
+  "http://localhost:5173", 
   "http://localhost:3000"
 ];
 
@@ -38,7 +39,8 @@ mongoose.connect(process.env.MONGO_URI)
 
 // --- ROTAS ---
 app.use("/api", receitasRoutes);
-app.use("/api", alunoRoutes); // ✅ ADICIONADO: Ativando a comunicação do Personal e Aluno no banco
+app.use("/api", alunoRoutes); 
+app.use("/api", personalRoutes); // ✅ ADICIONADO: Ativando a rota /api/personal/auth no servidor
 
 app.get("/", (req, res) => {
   res.send("API TreinoFit - Online e Sincronizada");

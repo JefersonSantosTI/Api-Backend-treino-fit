@@ -37,13 +37,24 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       DADOS DO ALUNO: Nome: ${nome}, Peso: ${peso}kg, Altura: ${altura}m, Idade: ${idade}, Objetivo: ${meta}. TMB: ${tmb.toFixed(0)}kcal. Calorias Alvo: ${caloriasFinais}kcal.
       HIDRATAÇÃO EXATA DO SISTEMA: ${litrosAgua} Litros/dia (Usando regra de ${multiplicadorAgua}ml/kg).
       
-      SUA MISSÃO: Retornar EXATAMENTE um objeto JSON válido contendo o treino, a dieta e a meta de água.
+      SUA MISSÃO: Retornar EXATAMENTE um objeto JSON válido contendo o treino estruturado de Segunda a Sexta, a dieta e a meta de água.
       
       ESTRUTURA JSON OBRIGATÓRIA:
       {
         "agua": "${litrosAgua} Litros/dia",
-        "treino": [
-          { "nome": "Agachamento Livre", "series": 4, "reps": "12", "obs": "Foco na amplitude" }
+        "treinoSemanal": [
+          {
+            "dia": "Segunda",
+            "exercicios": [
+              { "nome": "Agachamento Livre", "series": 4, "reps": "12", "obs": "Foco na amplitude" }
+            ]
+          },
+          {
+            "dia": "Terça",
+            "exercicios": [
+              { "nome": "Supino Reto", "series": 4, "reps": "10", "obs": "Controlar a descida" }
+            ]
+          }
         ],
         "dieta": [
           { "refeicao": "Café da Manhã", "itens": "2 ovos + 30g de aveia (Aprox. 300kcal)" }
@@ -51,10 +62,10 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       }
       
       REGRAS:
-      - Treino: Crie 4 a 5 exercícios adequados para ${meta}.
+      - treinoSemanal: Monte uma divisão de treino coerente de Segunda a Sexta-feira focada no objetivo de ${meta}.
       - Dieta: Crie 4 refeições batendo as calorias de ${caloriasFinais}kcal.
       - Água: Utilize EXATAMENTE o valor de ${litrosAgua} Litros passado nos dados do sistema.`;
-    } 
+    }
     // ---------------------------------------------------------
     // MODO 2: O SEU PROMPT ORIGINAL INTACTO (Para o Chat do Aluno)
     // ---------------------------------------------------------

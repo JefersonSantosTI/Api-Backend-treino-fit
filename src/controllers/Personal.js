@@ -1,13 +1,11 @@
 import mongoose from 'mongoose';
 
-const personalSchema = new mongoose.Schema({
-    nome: { type: String, required: true },
-    email: { type: String, unique: true, required: true },
-    googleId: { type: String, required: true }, // Armazena o ID único do Google Auth
-    foto: { type: String, default: "" },
-    cref: { type: String, required: true }, // Registro profissional obrigatório
-    tipoConta: { type: String, default: "personal" },
-    ativo: { type: Boolean, default: true }
+const PersonalSchema = new mongoose.Schema({
+  nome: { type: String, required: true },
+  email: { type: String, required: true, unique: true }, // O E-mail do Google (único)
+  cref: { type: String, required: true, unique: true },  // A licença de trabalho
+  googleId: { type: String, required: true },            // O ID de segurança do Google
+  foto: { type: String }                                 // A foto de perfil do Google
 }, { timestamps: true });
 
-export default mongoose.model('Personal', personalSchema, 'personais');
+export default mongoose.model('Personal', PersonalSchema, 'personais');
