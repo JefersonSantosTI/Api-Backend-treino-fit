@@ -24,29 +24,37 @@ export const obterAlunosAssessoria = async (req, res) => {
   } catch (error) { res.status(500).json({ message: 'Erro.', erro: error.message }); }
 };
 
+// =========================================================
+// LOGIN DO ALUNO NO PORTAL (Filtro Blindado Anti-Acento e Espaço)
+// =========================================================
 export const loginAluno = async (req, res) => {
   try {
     const { nome } = req.query;
     if (!nome) return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
 
-    // 🔥 FILTRO ELITE: Prepara o nome para ignorar acentos e espaços invisíveis
-    const nomeTratado = nome.trim()
-      .replace(/[aáàãâä]/gi, '[aáàãâä]')
-      .replace(/[eéèêë]/gi, '[eéèêë]')
-      .replace(/[iíìîï]/gi, '[iíìîï]')
-      .replace(/[oóòõôö]/gi, '[oóòõôö]')
-      .replace(/[uúùûü]/gi, '[uúùûü]')
-      .replace(/[cç]/gi, '[cç]');
+    // 1. Puxa todos os alunos do banco de dados (Rápido e seguro para assessorias)
+    const todosAlunos = await Aluno.find();
 
-    // O \\s* garante que espaços invisíveis salvos no banco por acidente sejam ignorados
-    const regexFlexivel = new RegExp(`^\\s*${nomeTratado}\\s*$`, 'i');
+    // 2. Limpa o que o aluno digitou:
+    // .trim() tira espaços nas pontas
+    // .toLowerCase() deixa tudo minúsculo
+    // .normalize e .replace tiram TODOS os acentos (Márcio Araújo vira marcio araujo)
+    const nomeBuscadoLimpo = nome.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-    const aluno = await Aluno.findOne({ nome: regexFlexivel });
-    
-    if (!aluno) return res.status(404).json({ mensagem: 'Não encontrado.' });
-    
-    res.status(200).json(aluno);
+    // 3. Procura na lista varrendo o banco de dados e limpando os nomes de lá também
+    const alunoEncontrado = todosAlunos.find(aluno => {
+      // Se no banco estiver " Márcio Araújo ", ele limpa e transforma em "marcio araujo" para comparar
+      const nomeBancoLimpo = aluno.nome.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      return nomeBancoLimpo === nomeBuscadoLimpo;
+    });
+
+    if (!alunoEncontrado) {
+      return res.status(404).json({ mensagem: 'Aluno não encontrado na assessoria.' });
+    }
+
+    res.status(200).json(alunoEncontrado);
   } catch (error) { 
+    console.error("Erro no login:", error);
     res.status(500).json({ erro: error.message }); 
   }
 };
