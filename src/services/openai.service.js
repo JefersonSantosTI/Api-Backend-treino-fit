@@ -6,7 +6,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// Adicionamos o parâmetro "contexto", que por padrão atende o usuário final
 export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}, contexto = "usuario_final") {
   try {
     // 1. EXTRAÇÃO E CONVERSÃO
@@ -16,10 +15,11 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
     const nome = dadosUsuario.nome || "Guerreiro(a)";
     const meta = dadosUsuario.meta || "Emagrecimento";
 
-    // 2. CÁLCULOS TÉCNICOS
+    // 2. CÁLCULOS TÉCNICOS AVANÇADOS
     const tmb = (10 * peso) + (6.25 * (altura * 100)) - (5 * idade) + 5;
     const imc = (peso / (altura * altura)).toFixed(1);
     
+    // ✅ SUA LÓGICA DE ÁGUA IMPLEMENTADA AQUI (60ml para secar, 50ml para crescer)
     const multiplicadorAgua = meta.toLowerCase().includes("emagrecimento") ? 60 : 50;
     const litrosAgua = ((peso * multiplicadorAgua) / 1000).toFixed(1);
 
@@ -30,16 +30,18 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
     let promptDoSistema = "";
 
     // ---------------------------------------------------------
-    // MODO 1: ASSISTENTE DO PERSONAL (Devolve Estrutura de Dados / JSON)
+    // MODO 1: ASSISTENTE DO PERSONAL (Devolve Estrutura JSON com ÁGUA)
     // ---------------------------------------------------------
     if (contexto === "personal_ia") {
-      promptDoSistema = `Você é um Assistente Técnico para Personal Trainers.
+      promptDoSistema = `Você é um Assistente Técnico para Personal Trainers e Nutricionistas.
       DADOS DO ALUNO: Nome: ${nome}, Peso: ${peso}kg, Altura: ${altura}m, Idade: ${idade}, Objetivo: ${meta}. TMB: ${tmb.toFixed(0)}kcal. Calorias Alvo: ${caloriasFinais}kcal.
+      HIDRATAÇÃO EXATA DO SISTEMA: ${litrosAgua} Litros/dia (Usando regra de ${multiplicadorAgua}ml/kg).
       
-      SUA MISSÃO: Retornar EXATAMENTE um objeto JSON válido contendo o treino e a dieta do aluno. NÃO adicione nenhum texto conversacional.
+      SUA MISSÃO: Retornar EXATAMENTE um objeto JSON válido contendo o treino, a dieta e a meta de água.
       
       ESTRUTURA JSON OBRIGATÓRIA:
       {
+        "agua": "${litrosAgua} Litros/dia",
         "treino": [
           { "nome": "Agachamento Livre", "series": 4, "reps": "12", "obs": "Foco na amplitude" }
         ],
@@ -49,8 +51,9 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       }
       
       REGRAS:
-      - Treino: Crie 4 exercícios adequados para ${meta}.
-      - Dieta: Crie 4 refeições (Café, Almoço, Lanche, Jantar) baseadas em Arroz, Feijão, Frango, Patinho, Tilápia, Ovos, Aveia e Frutas batendo as calorias de ${caloriasFinais}kcal.`;
+      - Treino: Crie 4 a 5 exercícios adequados para ${meta}.
+      - Dieta: Crie 4 refeições batendo as calorias de ${caloriasFinais}kcal.
+      - Água: Utilize EXATAMENTE o valor de ${litrosAgua} Litros passado nos dados do sistema.`;
     } 
     // ---------------------------------------------------------
     // MODO 2: O SEU PROMPT ORIGINAL INTACTO (Para o Chat do Aluno)
@@ -93,7 +96,6 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       Finalize com o QUADRO DE MACROS revisado da Opção 1.
 
       [MONETIZAÇÃO E PARCERIA - RODA PÉ OBRIGATÓRIO]
-      Ao final de TODA resposta que contiver um plano alimentar, você deve adicionar EXATAMENTE este bloco final com o LINK CLICÁVEL:
       ---
       🛒 **FACILITE SUA DIETA**
       Gostou do plano? Você pode pedir todos os ingredientes (frutas, carnes, verduras) agora mesmo sem sair de casa!
@@ -116,17 +118,15 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       MANDAMENTO: PROIBIDO símbolos matemáticos genéricos. Macros em **Negrito**. Use apenas alimentos acessíveis conforme o prompt original (ovo, frango, arroz, feijão, aveia, banana).`;
     }
 
-    // 3. CHAMADA OPENAI COM CONFIGURAÇÃO DINÂMICA
     const configuracaoRequisicao = {
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: promptDoSistema },
         ...mensagens.map(msg => ({ role: msg.role, content: String(msg.content || "") }))
       ],
-      temperature: contexto === "personal_ia" ? 0.2 : 0.7 // Temperatura mais baixa para o Personal (mais foco, menos criatividade maluca)
+      temperature: contexto === "personal_ia" ? 0.2 : 0.7 
     };
 
-    // Se for o modo do personal, força a OpenAI a devolver um JSON puro
     if (contexto === "personal_ia") {
       configuracaoRequisicao.response_format = { type: "json_object" };
     }
@@ -134,12 +134,11 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
     const resposta = await openai.chat.completions.create(configuracaoRequisicao);
     const conteudoGerado = resposta.choices[0].message.content;
 
-    // 4. RETORNO DOS DADOS
     if (contexto === "personal_ia") {
-      return JSON.parse(conteudoGerado); // Retorna os dados estruturados prontos para preencher os inputs
+      return JSON.parse(conteudoGerado); 
     }
 
-    return conteudoGerado; // Retorna o texto longo para o chat do aluno
+    return conteudoGerado;
 
   } catch (err) {
     console.error("❌ ERRO NO SERVIÇO OPENAI:", err.message);

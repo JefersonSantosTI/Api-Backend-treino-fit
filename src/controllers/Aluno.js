@@ -7,7 +7,6 @@ const ExercicioSchema = new mongoose.Schema({
   obs: { type: String }
 });
 
-// ✅ NOVO: Schema da Dieta (A gaveta para guardar as refeições)
 const RefeicaoSchema = new mongoose.Schema({
   refeicao: { type: String, required: true },
   itens: { type: String, required: true }
@@ -25,7 +24,8 @@ const AlunoSchema = new mongoose.Schema({
   statusTreino: { type: String, enum: ['Pendente', 'Rascunho IA', 'Enviado'], default: 'Pendente' },
   statusConta: { type: String, enum: ['Ativo', 'Off'], default: 'Ativo' },
   treinoPrescrito: [ExercicioSchema],
-  dietaPrescrita: [RefeicaoSchema], // ✅ Adicionado no Banco
+  dietaPrescrita: [RefeicaoSchema],
+  metaAgua: { type: String, default: 'Não calculada' }, // ✅ GAVETA NOVA PARA A ÁGUA
   checkins: [CheckinSchema]
 }, { timestamps: true });
 
