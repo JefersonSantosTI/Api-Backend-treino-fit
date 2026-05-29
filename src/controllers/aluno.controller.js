@@ -28,10 +28,27 @@ export const loginAluno = async (req, res) => {
   try {
     const { nome } = req.query;
     if (!nome) return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
-    const aluno = await Aluno.findOne({ nome: { $regex: new RegExp(`^${nome.trim()}$`, 'i') } });
+
+    // 🔥 FILTRO ELITE: Prepara o nome para ignorar acentos e espaços invisíveis
+    const nomeTratado = nome.trim()
+      .replace(/[aáàãâä]/gi, '[aáàãâä]')
+      .replace(/[eéèêë]/gi, '[eéèêë]')
+      .replace(/[iíìîï]/gi, '[iíìîï]')
+      .replace(/[oóòõôö]/gi, '[oóòõôö]')
+      .replace(/[uúùûü]/gi, '[uúùûü]')
+      .replace(/[cç]/gi, '[cç]');
+
+    // O \\s* garante que espaços invisíveis salvos no banco por acidente sejam ignorados
+    const regexFlexivel = new RegExp(`^\\s*${nomeTratado}\\s*$`, 'i');
+
+    const aluno = await Aluno.findOne({ nome: regexFlexivel });
+    
     if (!aluno) return res.status(404).json({ mensagem: 'Não encontrado.' });
+    
     res.status(200).json(aluno);
-  } catch (error) { res.status(500).json({ erro: error.message }); }
+  } catch (error) { 
+    res.status(500).json({ erro: error.message }); 
+  }
 };
 
 export const prescreverTreino = async (req, res) => {
