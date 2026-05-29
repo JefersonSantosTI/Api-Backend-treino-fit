@@ -35,3 +35,20 @@ export const autenticarPersonal = async (req, res) => {
     res.status(500).json({ mensagem: 'Erro na autenticação.', erro: error.message });
   }
 };
+
+export const loginGooglePersonal = async (req, res) => {
+  res.status(200).json({ mensagem: "Use a nova rota /api/personal/auth" });
+};
+
+export const listarAlunosDoPersonal = async (req, res) => {
+  // Retorna uma lista vazia temporariamente para o front-end não quebrar
+  res.status(200).json([]); 
+};
+
+export const onboardingAlunoDoPersonal = async (req, res) => {
+  res.status(200).json({ mensagem: "Em desenvolvimento" });
+};
+
+export const aprovarTreinoEDietaDoPersonal = async (req, res) => {
+  res.status(200).json({ mensagem: "Em desenvolvimento" });
+};
