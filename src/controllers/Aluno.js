@@ -7,9 +7,15 @@ const ExercicioSchema = new mongoose.Schema({
   obs: { type: String }
 });
 
+// ✅ NOVO: Schema da Dieta (A gaveta para guardar as refeições)
+const RefeicaoSchema = new mongoose.Schema({
+  refeicao: { type: String, required: true },
+  itens: { type: String, required: true }
+});
+
 const CheckinSchema = new mongoose.Schema({
-  data: { type: String, required: true },         // Ex: "28/05"
-  diaSemana: { type: String, required: true }    // Ex: "Quinta-feira"
+  data: { type: String, required: true },
+  diaSemana: { type: String, required: true }
 }, { timestamps: true });
 
 const AlunoSchema = new mongoose.Schema({
@@ -19,8 +25,8 @@ const AlunoSchema = new mongoose.Schema({
   statusTreino: { type: String, enum: ['Pendente', 'Rascunho IA', 'Enviado'], default: 'Pendente' },
   statusConta: { type: String, enum: ['Ativo', 'Off'], default: 'Ativo' },
   treinoPrescrito: [ExercicioSchema],
+  dietaPrescrita: [RefeicaoSchema], // ✅ Adicionado no Banco
   checkins: [CheckinSchema]
 }, { timestamps: true });
 
-// Força o mongoose a usar e criar a coleção isolada "alunos" no banco de dados
 export default mongoose.model('Aluno', AlunoSchema, 'alunos');
