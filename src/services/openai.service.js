@@ -71,19 +71,19 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       - Hidratação Exata: ${litrosAgua} Litros/dia (${multiplicadorAgua}ml/kg)
       - Macros Alvo -> Proteínas: ${proteinaAlvo}g | Gorduras: ${gorduraAlvo}g | Carboidratos: ${carboAlvo}g
 
-      ⚠️ REGRAS DE PRESCRIÇÃO - PADRÃO ELITE:
-      1. TREINO (SEGURANÇA E PERIODIZAÇÃO): 
-         - Crie o treino EXATAMENTE para ${diasTreino} dias na semana. Não crie dias extras.
-         - Adapte a dificuldade e volume para o nível ${nivel}.
-         - É ESTRITAMENTE PROIBIDO receitar exercícios que agravem a condição: "${lesoes}". Substitua por exercícios seguros.
-         - Se hipertrofia: exija controle de cadência e inclua métodos avançados (ex: Drop-set, Rest-pause) nas observações.
-         - Se emagrecimento: integre blocos metabólicos ou bi-sets.
-      2. DIETA (PRECISÃO E RESTRIÇÕES): 
-         - Respeite ABSOLUTAMENTE a restrição alimentar: "${restricoes}".
-         - Monte um cardápio diário (4 a 5 refeições) que bata EXATAMENTE os macros calculados acima.
-         - Especifique as quantidades exatas em GRAMAS (ex: 150g frango, 100g arroz).
-      3. RETORNO ESTRITO EM JSON: 
-         - Você DEVE retornar EXATAMENTE um objeto JSON válido. Nenhum caractere markdown (\`\`\`json) ou texto fora das chaves.
+      🎯 PERIODIZAÇÃO OBRIGATÓRIA (SISTEMA DE DIVISÃO):
+      - Se ${diasTreino} dias: Use divisão ABC (ou Fullbody se iniciante).
+      - Se ${diasTreino} dias: Use divisão ABCD (Peito/Tríceps, Costas/Bíceps, Pernas/Panturrilha, Ombros/Trapézio).
+      - Se ${diasTreino} dias: Use divisão ABCDE (A: Peito, B: Costas, C: Pernas, D: Ombros, E: Braços/Panturrilha).
+      - REGRAS DE OURO:
+        1. Agrupamento Muscular Lógico: Peito com Tríceps ou Ombro anterior; Costas com Bíceps ou Posterior de ombro.
+        2. Ordem de Execução: Exercícios Compostos (Multiarticulares) sempre primeiro.
+        3. Sem Bagunça: Cada dia deve ter entre 5 a 6 exercícios, com séries e repetições claras.
+        4. Segurança: Exercícios proibidos para lesão "${lesoes}" devem ser substituídos imediatamente.
+
+      ⚠️ RETORNO ESTRITO EM JSON: 
+      - Não retorne texto antes ou depois do JSON.
+      - O campo "foco" em cada dia é obrigatório para organizar a leitura.
 
       ESTRUTURA JSON OBRIGATÓRIA:
       {
@@ -91,15 +91,17 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
         "treinoSemanal": [
           {
             "dia": "Segunda",
+            "foco": "Nome da Divisão (Ex: Peito e Tríceps)",
             "exercicios": [
-              { "nome": "Nome do Exercício", "series": 4, "reps": "10-12", "obs": "Instrução técnica (ex: 60s descanso, cadência 3010)" }
+              { "nome": "Nome do Exercício", "series": 4, "reps": "8-12", "obs": "Foco na cadência" }
             ]
           }
         ],
         "dieta": [
-          { "refeicao": "Café da Manhã", "itens": "Qtd exata + Alimento (Aprox. X kcal - P:Xg, C:Xg, G:Xg)" }
+          { "refeicao": "Café da Manhã", "itens": "Descrição detalhada" }
         ]
       }`;
+    
     }
     // ---------------------------------------------------------
     // MODO 2: O SEU PROMPT ORIGINAL INTACTO (Para o Chat do Aluno)
