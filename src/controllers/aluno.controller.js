@@ -135,3 +135,65 @@ export const matricularViaLinkIA = async (req, res) => {
     res.status(201).json({ mensagem: "Concluído!", aluno: novoAluno });
   } catch (error) { res.status(500).json({ erro: error.message }); }
 };
+
+// =========================================================
+// ✅ NOVA FUNÇÃO: ATUALIZA BIOMETRIA E RECALCULA IA (EDICAO PELO PERSONAL)
+// =========================================================
+export const atualizarBiometria = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const novosDados = req.body;
+
+    const aluno = await Aluno.findById(id);
+    
+    if (!aluno) {
+      return res.status(404).json({ mensagem: "Aluno não encontrado no banco de dados." });
+    }
+
+    // Atualiza apenas os dados enviados, mantendo os que não foram alterados
+    aluno.peso = novosDados.peso || aluno.peso;
+    aluno.altura = novosDados.altura || aluno.altura;
+    aluno.idade = novosDados.idade || aluno.idade;
+    aluno.objetivo = novosDados.meta || aluno.objetivo; 
+    aluno.nivel = novosDados.nivel || aluno.nivel;
+    aluno.diasTreino = novosDados.diasTreino || aluno.diasTreino;
+    aluno.restricoes = novosDados.restricoes || aluno.restricoes;
+    aluno.lesoes = novosDados.lesoes || aluno.lesoes;
+    aluno.genero = novosDados.genero || aluno.genero;
+
+    await aluno.save();
+
+    // Mock das mensagens obrigatórias para não quebrar a chamada do openai.service
+    const promptFake = [{ role: "user", content: `Recalcule o plano completo para o aluno ${aluno.nome}.` }];
+
+    // Monta o payload para injetar no openai.service.js
+    const payloadIA = {
+      nome: aluno.nome,
+      peso: aluno.peso,
+      altura: aluno.altura,
+      idade: aluno.idade,
+      meta: aluno.objetivo,
+      genero: aluno.genero || "Masculino",
+      nivel: aluno.nivel,
+      diasTreino: aluno.diasTreino,
+      restricoes: aluno.restricoes,
+      lesoes: aluno.lesoes
+    };
+
+    // Acorda a IA para gerar o novo treino, dieta e água
+    const novaPrescricaoIA = await obterRespostaReceitas(promptFake, payloadIA, "personal_ia");
+
+    // Injeta a nova prescrição de volta no banco do aluno
+    aluno.treinoSemanal = novaPrescricaoIA.treinoSemanal || aluno.treinoSemanal;
+    aluno.dietaPrescrita = novaPrescricaoIA.dieta || aluno.dietaPrescrita;
+    aluno.metaAgua = novaPrescricaoIA.agua || aluno.metaAgua;
+    aluno.statusTreino = "Rascunho IA"; // Retorna para revisão, para o Personal conferir
+
+    await aluno.save();
+
+    res.status(200).json(aluno);
+  } catch (error) {
+    console.error("Erro Crítico ao atualizar biometria e recalcular IA:", error);
+    res.status(500).json({ erro: error.message });
+  }
+};
