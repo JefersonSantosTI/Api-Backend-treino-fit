@@ -78,7 +78,7 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       - REGRAS DE OURO:
         1. Agrupamento Muscular Lógico: Peito com Tríceps ou Ombro anterior; Costas com Bíceps ou Posterior de ombro.
         2. Ordem de Execução: Exercícios Compostos (Multiarticulares) sempre primeiro.
-        3. Sem Bagunça: Cada dia deve ter entre 5 a 6 exercícios, com séries e repetições claras.
+        3. Sem Bagunça: Cada dia deve ter entre 8 a 9 exercícios, com séries e repetições claras.
         4. Segurança: Exercícios proibidos para lesão "${lesoes}" devem ser substituídos imediatamente.
 
       ⚠️ RETORNO ESTRITO EM JSON: 
