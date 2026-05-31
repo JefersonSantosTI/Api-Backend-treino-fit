@@ -30,6 +30,20 @@ SE OBJETIVO = EMAGRECIMENTO (QUEIMA ACELERADA):
 - Exercícios obrigatórios: Muitos movimentos que elevam a frequência cardíaca combinados com base forte (ex: Agachamento + Polichinelo, Afundo + Flexão, Burpees, Thrusters). 
 - REGRAS DE EMAGRECIMENTO: NUNCA crie um treino de emagrecimento que seja apenas "Peito e Tríceps" estático. Tem que ter dinâmica!
 
+perfil: { 
+  peso: perfil.peso, 
+  altura: perfil.altura, 
+  idade: perfil.idade,
+  nivel: perfil.nivel,
+  diasTreino: perfil.diasTreino,
+  restricoes: perfil.restricoes,
+  lesoes: perfil.lesoes,
+  // 👇 As novidades
+  tempoTreino: "45 minutos",
+  localTreino: "Academia",
+  focoEspecifico: "Glúteos e Abdômen"
+}
+
 🎬 REGRA DOS NOMES PARA GIFS:
 Use EXATAMENTE estes nomes padrão de academia para os exercícios de força: "Supino Reto", "Agachamento Livre", "Leg Press", "Puxada Frontal", "Rosca Direta", "Triceps Corda", "Afundo", "Flexão de Braços", "Polichinelo". Não invente nomes longos.
 
