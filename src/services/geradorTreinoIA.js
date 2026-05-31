@@ -80,6 +80,15 @@ FORMATO JSON ESPERADO (Obrigatório, sem markdown extra fora do JSON):
 - Lesões/Dores: ${lesoes}
 - Restrições: ${restricoes}
 
+MEMÓRIA DO SISTEMA (HISTÓRICO DO ALUNO):
+- Treino que ele estava fazendo nos últimos 30 dias: "${faseAnterior}" (Ex: Preparação Metabólica)
+- Quantidade de Check-ins (Dias treinados): ${totalCheckins} dias.
+
+DIRETRIZ DE EVOLUÇÃO:
+O aluno está gerando um NOVO ciclo de treinos. 
+Se ele teve muitos check-ins, aumente a intensidade e mude os exercícios para gerar novo estímulo.
+Se a fase anterior era "Preparação Metabólica", a nova fase DEVE ser focada na consolidação de força e hipertrofia. Crie progressão lógica!
+
 Baseado nestes dados cruzados, atue como o Head Coach e gere a planilha semanal em JSON.`
       }
     ],
