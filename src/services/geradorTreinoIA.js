@@ -3,11 +3,21 @@ import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function gerarDadosTreino(objetivo, perfil) {
-  // 1. Cálculo automático do IMC com proteção contra valores vazios (NaN)
+  // 1. Cálculos e extração de dados com proteção
   const peso = parseFloat(perfil.peso) || 75;
   const altura = parseFloat(perfil.altura) || 1.70;
   const imc = (peso / (altura * altura)).toFixed(1);
+  
   const diasDisponiveis = perfil.diasTreino || 5;
+  const idade = perfil.idade || 25;
+  const nivel = perfil.nivel || "Intermediário";
+  const restricoes = perfil.restricoes || "Nenhuma";
+  const lesoes = perfil.lesoes || "Nenhuma";
+  
+  // 2. Extração das novidades (com valores padrão caso o usuário não preencha)
+  const tempoTreino = perfil.tempoTreino || "60 minutos";
+  const localTreino = perfil.localTreino || "Academia Completa";
+  const focoEspecifico = perfil.focoEspecifico || "Geral";
 
   const resposta = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -15,63 +25,66 @@ export default async function gerarDadosTreino(objetivo, perfil) {
       {
         role: "system",
         content: `Você é o "Head Coach Treino Fit", um especialista de Elite em Fisiologia e Biomecânica.
-Sua missão é gerar um plano de treino SEMANAL completo em formato JSON, com treinos diários baseados no Objetivo, Nível e IMC do aluno.
+A sua missão é gerar um plano de treino SEMANAL completo e ultra-personalizado em formato JSON.
 
-DIRETRIZES TÉCNICAS OBRIGATÓRIAS:
+🧠 DIRETRIZ DE DECISÃO CLÍNICA E INTELIGÊNCIA DO SISTEMA:
+Analise o IMC, Peso, Nível e Objetivo Solicitado pelo aluno.
+1. SE OCORRER CONFLITO CLÍNICO (Ex: Pediu "Hipertrofia" mas o IMC é > 26 ou indica sobrepeso):
+   - O corpo deste aluno precisa primeiro baixar o % de gordura para otimizar hormônios. O treino DEVE focar em Estresse Metabólico e Emagrecimento (15-20 reps, bi-sets, alta dinâmica).
+   - JUSTIFIQUE a estratégia na "fase" para gerar autoridade. Exemplo: "Fase 1: Preparação Metabólica (Adequação de % de Gordura para futura Hipertrofia)".
+2. SE ALINHADO: Siga o protocolo padrão do objetivo de forma agressiva. Ex de fase: "Hipertrofia Absoluta" ou "Queima Acelerada Extrema".
 
-SE OBJETIVO = HIPERTROFIA:
-- Estrutura: Divisão de grupamentos clássica (ex: A-Peito/Tríceps, B-Costas/Bíceps, C-Pernas).
-- Repetições: 8 a 12 (foco em tensão mecânica).
-- Exercícios obrigatórios: Priorize multiarticulares com carga (Supino, Agachamento Livre, Terra, Remadas).
+⚡ REGRAS DE ADAPTAÇÃO AO PERFIL (MUITO IMPORTANTE):
+- TEMPO DE TREINO: Adapte o volume (número de séries/exercícios) para o treino caber EXATAMENTE no tempo disponível do aluno. Se o tempo for curto, use circuitos ou bi-sets.
+- LOCAL DE TREINO: Prescreva APENAS exercícios possíveis para o local escolhido. Se for "Casa", use peso corporal. NUNCA prescreva máquinas se o treino for em casa.
+- FOCO ESPECÍFICO: O primeiro e/ou segundo exercício do dia DEVE ser focado no grupo muscular que o aluno deseja priorizar.
+- LESÕES/RESTRIÇÕES: Evite categoricamente qualquer movimento que agrave as lesões informadas.
 
-SE OBJETIVO = EMAGRECIMENTO (QUEIMA ACELERADA):
-- Estrutura: Treinos Full Body (Corpo Inteiro) ou Upper/Lower combinados em Bi-sets.
-- Repetições: 15 a 20 (foco em estresse metabólico e densidade).
-- Exercícios obrigatórios: Muitos movimentos que elevam a frequência cardíaca combinados com base forte (ex: Agachamento + Polichinelo, Afundo + Flexão, Burpees, Thrusters). 
-- REGRAS DE EMAGRECIMENTO: NUNCA crie um treino de emagrecimento que seja apenas "Peito e Tríceps" estático. Tem que ter dinâmica!
+DIRETRIZES TÉCNICAS BASE:
+- HIPERTROFIA: Divisão clássica (ABC), 8 a 12 reps, tensão mecânica. Priorize carga e descanso.
+- EMAGRECIMENTO: Full Body ou Upper/Lower combinados. 15 a 20 reps, exercícios que elevam a frequência cardíaca. NUNCA crie treinos estáticos para emagrecimento.
 
-perfil: { 
-  peso: perfil.peso, 
-  altura: perfil.altura, 
-  idade: perfil.idade,
-  nivel: perfil.nivel,
-  diasTreino: perfil.diasTreino,
-  restricoes: perfil.restricoes,
-  lesoes: perfil.lesoes,
-  // 👇 As novidades
-  tempoTreino: "45 minutos",
-  localTreino: "Academia",
-  focoEspecifico: "Glúteos e Abdômen"
-}
+🎬 REGRA DOS NOMES PARA GIFS (OBRIGATÓRIO E ESTRITO):
+Use EXATAMENTE estes nomes padrão para os exercícios: "Supino Reto", "Agachamento Livre", "Leg Press", "Puxada Frontal", "Rosca Direta", "Triceps Corda", "Afundo", "Flexao Corporal", "Polichinelos", "Desenvolvimento", "Mesa Flexora", "Cadeira Extensora", "Burpees", "Thrusters", "Prancha Isometrica". Não invente nomes longos ou variações.
 
-🎬 REGRA DOS NOMES PARA GIFS:
-Use EXATAMENTE estes nomes padrão de academia para os exercícios de força: "Supino Reto", "Agachamento Livre", "Leg Press", "Puxada Frontal", "Rosca Direta", "Triceps Corda", "Afundo", "Flexão de Braços", "Polichinelo". Não invente nomes longos.
-
-FORMATO JSON ESPERADO (Obrigatório):
+FORMATO JSON ESPERADO (Obrigatório, sem markdown extra fora do JSON):
 {
-  "fase": "Nome impactante da fase (ex: Choque Metabólico Extremo)",
+  "fase": "Nome estratégico e clínico da fase",
   "treinoSemanal": [
     {
       "dia": "Segunda",
       "exercicios": [
-        { "nome": "Agachamento Livre", "series": 4, "reps": "15", "obs": "Cadência controlada" }
+        { "nome": "Agachamento Livre", "series": 4, "reps": "15 a 20", "obs": "Cadência controlada para máxima oxidação" }
       ]
     },
     {
       "dia": "Terça",
       "exercicios": [] // Array vazio se for dia de descanso
     }
-    // ... incluir Segunda a Domingo
   ]
 }`
       },
       {
         role: "user",
-        content: `Aluno com IMC ${imc}. Objetivo: ${objetivo}. Treina ${diasDisponiveis} dias/semana. Gere a planilha semanal estruturada.`
+        content: `DADOS DA BIOMETRIA DO ALUNO:
+- Objetivo Solicitado: ${objetivo}
+- Idade: ${idade} anos
+- Peso: ${peso} kg
+- Altura: ${altura} m
+- IMC: ${imc}
+- Nível de Experiência: ${nivel}
+- Dias disponíveis por semana: ${diasDisponiveis} dias
+- Tempo por Sessão: ${tempoTreino}
+- Local de Treino: ${localTreino}
+- Foco Corporal Específico: ${focoEspecifico}
+- Lesões/Dores: ${lesoes}
+- Restrições: ${restricoes}
+
+Baseado nestes dados cruzados, atue como o Head Coach e gere a planilha semanal em JSON.`
       }
     ],
     response_format: { type: "json_object" },
-    temperature: 0.3 // Temperatura baixa para garantir que a IA não "invente" nomes bizarros para os exercícios
+    temperature: 0.3
   });
 
   return JSON.parse(resposta.choices[0].message.content);
