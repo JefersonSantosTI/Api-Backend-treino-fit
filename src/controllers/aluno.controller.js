@@ -153,7 +153,7 @@ export const atualizarBiometria = async (req, res) => {
       return res.status(404).json({ mensagem: "Aluno não encontrado no banco de dados." });
     }
 
-    // Atualiza apenas os dados enviados, mantendo os que não foram alterados
+    // Atualiza biometria base
     aluno.peso = novosDados.peso || aluno.peso;
     aluno.altura = novosDados.altura || aluno.altura;
     aluno.idade = novosDados.idade || aluno.idade;
@@ -164,10 +164,18 @@ export const atualizarBiometria = async (req, res) => {
     aluno.lesoes = novosDados.lesoes || aluno.lesoes;
     aluno.genero = novosDados.genero || aluno.genero;
 
-    await aluno.save();
+    // ✅ SALVA AS MEDIDAS QUE O PERSONAL PREENCHEU
+    if (novosDados.medidas) {
+      aluno.medidas = {
+        braco: novosDados.medidas.braco || aluno.medidas?.braco || "",
+        perna: novosDados.medidas.perna || aluno.medidas?.perna || "",
+        gluteo: novosDados.medidas.gluteo || aluno.medidas?.gluteo || "",
+        torax: novosDados.medidas.torax || aluno.medidas?.torax || "",
+        cintura: novosDados.medidas.cintura || aluno.medidas?.cintura || ""
+      };
+    }
 
-    // Mock das mensagens obrigatórias para não quebrar a chamada do openai.service
-    const promptFake = [{ role: "user", content: `Recalcule o plano completo para o aluno ${aluno.nome}.` }];
+    await aluno.save();
 
     // Monta o payload para injetar no openai.service.js
     const payloadIA = {
@@ -180,20 +188,22 @@ export const atualizarBiometria = async (req, res) => {
       nivel: aluno.nivel,
       diasTreino: aluno.diasTreino,
       restricoes: aluno.restricoes,
-      lesoes: aluno.lesoes
+      lesoes: aluno.lesoes,
+      // ✅ INJETA AS MEDIDAS PARA A IA FICAR AGRESSIVA NA PRESCRIÇÃO
+      medidasCorporais: aluno.medidas 
     };
 
-    // Acorda a IA para gerar o novo treino, dieta e água
+    // A IA VAI LER AS MEDIDAS AQUI PARA GERAR O TREINO E A DIETA
+    const promptFake = [{ role: "user", content: `Recalcule o plano completo para o aluno ${aluno.nome}. Leia atentamente as medidas corporais, se existirem, para direcionar o foco hipertrófico ou de perda de medidas localizadas.` }];
     const novaPrescricaoIA = await obterRespostaReceitas(promptFake, payloadIA, "personal_ia");
 
-    // Injeta a nova prescrição de volta no banco do aluno
+    // Injeta a nova prescrição de volta no banco
     aluno.treinoSemanal = novaPrescricaoIA.treinoSemanal || aluno.treinoSemanal;
     aluno.dietaPrescrita = novaPrescricaoIA.dieta || aluno.dietaPrescrita;
     aluno.metaAgua = novaPrescricaoIA.agua || aluno.metaAgua;
-    aluno.statusTreino = "Rascunho IA"; // Retorna para revisão, para o Personal conferir
+    aluno.statusTreino = "Rascunho IA"; 
 
     await aluno.save();
-
     res.status(200).json(aluno);
   } catch (error) {
     console.error("Erro Crítico ao atualizar biometria e recalcular IA:", error);

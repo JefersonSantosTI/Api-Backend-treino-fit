@@ -7,7 +7,6 @@ const ExercicioSchema = new mongoose.Schema({
   obs: { type: String }
 });
 
-// ✅ NOVO: Cada dia da semana terá sua própria lista de exercícios
 const RotinaDiariaSchema = new mongoose.Schema({
   dia: { type: String, enum: ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'], required: true },
   exercicios: [ExercicioSchema]
@@ -21,7 +20,6 @@ const RefeicaoSchema = new mongoose.Schema({
 const CheckinSchema = new mongoose.Schema({
   data: { type: String, required: true },
   diaSemana: { type: String, required: true },
-  // ✅ 3. ADICIONADO AQUI: Agora o Banco de Dados reconhece e salva o Feedback
   feedback: {
     intensidade: String,
     carga: String,
@@ -35,7 +33,17 @@ const AlunoSchema = new mongoose.Schema({
   objetivo: { type: String, default: 'Emagrecimento' },
   statusTreino: { type: String, enum: ['Pendente', 'Rascunho IA', 'Enviado'], default: 'Pendente' },
   statusConta: { type: String, enum: ['Ativo', 'Off'], default: 'Ativo' },
-  treinoSemanal: [RotinaDiariaSchema], // ✅ ALTERADO: Agora é um array mapeado por dias
+  
+  // ✅ ADICIONADO: Objeto para guardar as medidas do Personal
+  medidas: {
+    braco: { type: String, default: "" },
+    perna: { type: String, default: "" },
+    gluteo: { type: String, default: "" },
+    torax: { type: String, default: "" },
+    cintura: { type: String, default: "" }
+  },
+
+  treinoSemanal: [RotinaDiariaSchema],
   dietaPrescrita: [RefeicaoSchema],
   metaAgua: { type: String, default: 'Não calculada' },
   checkins: [CheckinSchema]
