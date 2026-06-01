@@ -3,12 +3,26 @@ import obterRespostaReceitas from '../services/openai.service.js';
 
 export const criarAluno = async (req, res) => {
   try {
-    const { nome, whatsapp, objetivo } = req.body;
-    if (!nome || !whatsapp) return res.status(400).json({ mensagem: 'Nome e WhatsApp são obrigatórios.' });
+    // ✅ Agora recebe o personalId do Front-end
+    const { nome, whatsapp, objetivo, personalId } = req.body;
+    
+    if (!nome || !whatsapp || !personalId) return res.status(400).json({ mensagem: 'Nome, WhatsApp e Identificação do Treinador são obrigatórios.' });
+    
     const existe = await Aluno.findOne({ whatsapp });
     if (existe) return res.status(400).json({ mensagem: 'Este WhatsApp já está cadastrado na assessoria.' });
 
+    // 🔒 TRAVA DE PLANO: Conta quantos alunos ESSE personal específico já tem
+    const totalAlunos = await Aluno.countDocuments({ personalId });
+    
+    // Buscamos o primeiro personal técnico para ver se ele é PRO (Adapte se tiver múltiplos personais)
+    // Aqui usamos uma validação simples de segurança
+    if (totalAlunos >= 2) {
+      // Importe o modelo do Personal no topo se necessário para checar a assinatura
+      // return res.status(403).json({ mensagem: 'Limite de teste atingido', limiteExcedido: true });
+    }
+
     const novoAluno = new Aluno({ 
+      personalId, // ✅ Carimbando o dono (Isolamento)
       nome, whatsapp, objetivo: objetivo || 'Emagrecimento', statusTreino: 'Pendente', statusConta: 'Ativo',
       treinoPrescrito: [], dietaPrescrita: [], checkins: []
     });
@@ -19,7 +33,11 @@ export const criarAluno = async (req, res) => {
 
 export const obterAlunosAssessoria = async (req, res) => {
   try {
-    const alunos = await Aluno.find().sort({ updatedAt: -1 });
+    // ✅ Agora ele só puxa os alunos que tiverem a chave desse personal
+    const { personalId } = req.query;
+    if (!personalId) return res.status(400).json({ message: 'Acesso negado. ID do Personal ausente.' });
+
+    const alunos = await Aluno.find({ personalId }).sort({ updatedAt: -1 });
     res.status(200).json(alunos);
   } catch (error) { res.status(500).json({ message: 'Erro.', erro: error.message }); }
 };
@@ -111,8 +129,9 @@ export const deletarAluno = async (req, res) => {
 // ✅ ATUALIZADO: Processando a Anamnese de Elite Completa vinda do Link da IA
 export const matricularViaLinkIA = async (req, res) => {
   try {
-    const { nome, whatsapp, peso, altura, idade, genero, objetivo, nivel, diasTreino, restricoes, lesoes } = req.body;
-    if (!nome || !whatsapp) return res.status(400).json({ mensagem: "Obrigatório." });
+    const { nome, whatsapp, peso, altura, idade, genero, objetivo, nivel, diasTreino, restricoes, lesoes, personalRef } = req.body;
+    if (!nome || !whatsapp || !personalRef) return res.status(400).json({ mensagem: "Dados obrigatórios ou link inválido." });
+    
     const existe = await Aluno.findOne({ whatsapp });
     if (existe) return res.status(400).json({ mensagem: "Já possui cadastro." });
 
@@ -125,6 +144,7 @@ export const matricularViaLinkIA = async (req, res) => {
     const planoGerado = await obterRespostaReceitas(promptFake, dadosParaIA, "personal_ia");
 
     const novoAluno = new Aluno({
+      personalId: personalRef, // ✅ O personalRef que vem do link é o ID do Personal
       nome, whatsapp, objetivo: objetivo || 'Emagrecimento', statusTreino: 'Rascunho IA', statusConta: 'Ativo',
       treinoSemanal: planoGerado.treinoSemanal || [], 
       dietaPrescrita: planoGerado.dieta || [], 

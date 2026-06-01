@@ -28,13 +28,15 @@ const CheckinSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const AlunoSchema = new mongoose.Schema({
+  // ✅ AQUI ESTÁ A CHAVE DE ISOLAMENTO (O CARIMBO DO DONO)
+  personalId: { type: String, required: true }, 
+
   nome: { type: String, required: true },
   whatsapp: { type: String, required: true, unique: true },
   objetivo: { type: String, default: 'Emagrecimento' },
   statusTreino: { type: String, enum: ['Pendente', 'Rascunho IA', 'Enviado'], default: 'Pendente' },
   statusConta: { type: String, enum: ['Ativo', 'Off'], default: 'Ativo' },
   
-  // ✅ ADICIONADO: Objeto para guardar as medidas do Personal
   medidas: {
     braco: { type: String, default: "" },
     perna: { type: String, default: "" },
