@@ -36,6 +36,7 @@ export const autenticarPersonal = async (req, res) => {
   } catch (error) {
     res.status(500).json({ mensagem: 'Erro na autenticação.', erro: error.message });
   }
+};
 
 export const loginGooglePersonal = async (req, res) => {
   res.status(200).json({ mensagem: "Use a nova rota /api/personal/auth" });
