@@ -59,9 +59,9 @@ export const aprovarTreinoEDietaDoPersonal = async (req, res) => {
 // ✅ INTEGRAÇÃO KIWIFY: RECEBE E PROCESSA O PAGAMENTO
 // =========================================================
 export const processarWebhookKiwify = async (req, res) => {
+  console.log("🔥 Webhook recebido! Dados:", JSON.stringify(req.body)); // ✅ ADICIONE ISSO
   try {
     const evento = req.body;
-    
     // O Kiwify envia os dados do cliente dentro de 'Customer' e o status em 'order_status'
     const emailComprador = evento?.Customer?.email;
     const statusCompra = evento?.order_status;
