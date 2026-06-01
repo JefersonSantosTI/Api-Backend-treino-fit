@@ -20,7 +20,13 @@ const RefeicaoSchema = new mongoose.Schema({
 
 const CheckinSchema = new mongoose.Schema({
   data: { type: String, required: true },
-  diaSemana: { type: String, required: true }
+  diaSemana: { type: String, required: true },
+  // ✅ 3. ADICIONADO AQUI: Agora o Banco de Dados reconhece e salva o Feedback
+  feedback: {
+    intensidade: String,
+    carga: String,
+    comentario: String
+  }
 }, { timestamps: true });
 
 const AlunoSchema = new mongoose.Schema({

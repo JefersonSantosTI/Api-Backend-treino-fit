@@ -76,13 +76,16 @@ export const prescreverTreino = async (req, res) => {
 export const registrarCheckin = async (req, res) => {
   try {
     const { id } = req.params;
-    const { data, diaSemana } = req.body;
+    // ✅ 1. ADICIONADO O FEEDBACK AQUI PARA RECEBER DO FRONT-END
+    const { data, diaSemana, feedback } = req.body; 
+    
     const aluno = await Aluno.findById(id);
     if (!aluno) return res.status(404).json({ window: 'Não encontrado.' });
     const jaFezCheckin = aluno.checkins.some(c => c.data === data);
     if (jaFezCheckin) return res.status(400).json({ mensagem: 'Check-in já realizado.' });
 
-    aluno.checkins.unshift({ data, diaSemana });
+    // ✅ 2. ENVIANDO O FEEDBACK PARA SER SALVO NO BANCO
+    aluno.checkins.unshift({ data, diaSemana, feedback }); 
     await aluno.save();
     res.status(200).json(aluno);
   } catch (error) { res.status(500).json({ erro: error.message }); }
