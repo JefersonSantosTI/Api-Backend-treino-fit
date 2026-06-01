@@ -59,43 +59,40 @@ export const aprovarTreinoEDietaDoPersonal = async (req, res) => {
 // ✅ INTEGRAÇÃO KIWIFY: RECEBE E PROCESSA O PAGAMENTO
 // =========================================================
 export const processarWebhookKiwify = async (req, res) => {
-  console.log("🔥 Webhook recebido! Dados:", JSON.stringify(req.body)); // ✅ ADICIONE ISSO
+  console.log("🔥 Webhook recebido! Dados:", JSON.stringify(req.body));
+  
   try {
     const evento = req.body;
-    // O Kiwify envia os dados do cliente dentro de 'Customer' e o status em 'order_status'
-    const emailComprador = evento?.Customer?.email;
+    // Captura o email e garante que é minúsculo e sem espaços extras
+    const emailComprador = evento?.Customer?.email?.toLowerCase().trim();
     const statusCompra = evento?.order_status;
 
-    // Se o webhook não trouxer email, apenas ignoramos para não dar erro
     if (!emailComprador) {
       return res.status(400).send("Webhook recebido, mas sem email do comprador.");
     }
 
-    // 1. Procura o Personal pelo e-mail que ele usou na compra da Kiwify
+    // BUSCA ROBUSTA: O MongoDB vai procurar pelo e-mail exatamente igual
     const personal = await Personal.findOne({ email: emailComprador });
 
     if (!personal) {
-      console.log(`[KIWIFY] Compra aprovada para ${emailComprador}, mas não achou conta no banco. Aguardando ele fazer o login.`);
-      return res.status(200).send("Conta não encontrada. Webhook recebido.");
+      console.log(`[KIWIFY] ❌ Usuário não encontrado no banco com o email: ${emailComprador}`);
+      return res.status(200).send("Conta não encontrada. Webhook ignorado.");
     }
 
-    // 2. Liberta ou Bloqueia o acesso dependendo da ação no cartão
+    // Lógica de liberação/bloqueio
     if (statusCompra === 'paid') {
       personal.assinaturaAtiva = true;
-      console.log(`[KIWIFY] 💰 Acesso LIBERADO para o Personal: ${emailComprador}`);
-    } else if (statusCompra === 'refunded' || statusCompra === 'canceled' || statusCompra === 'chargeback') {
+      console.log(`[KIWIFY] 💰 Acesso LIBERADO para: ${emailComprador}`);
+    } else if (['refunded', 'canceled', 'chargeback'].includes(statusCompra)) {
       personal.assinaturaAtiva = false;
-      console.log(`[KIWIFY] 🚫 Acesso BLOQUEADO para o Personal: ${emailComprador}`);
+      console.log(`[KIWIFY] 🚫 Acesso BLOQUEADO para: ${emailComprador}`);
     }
 
-    // 3. Salva a nova configuração no banco de dados
     await personal.save();
-    
-    // O Kiwify precisa de uma resposta 200 OK para saber que o seu servidor recebeu o aviso
-    res.status(200).send("Webhook processado com sucesso e acesso atualizado!");
+    res.status(200).send("Webhook processado com sucesso!");
 
   } catch (error) {
-    console.error("Erro Crítico no Webhook da Kiwify:", error);
-    res.status(500).send("Erro interno ao processar webhook.");
+    console.error("Erro Crítico no Webhook:", error);
+    res.status(500).send("Erro interno.");
   }
 };
