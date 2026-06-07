@@ -28,7 +28,6 @@ const CheckinSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const AlunoSchema = new mongoose.Schema({
-  // ✅ AQUI ESTÁ A CHAVE DE ISOLAMENTO (O CARIMBO DO DONO)
   personalId: { type: String, required: true }, 
 
   nome: { type: String, required: true },
@@ -37,12 +36,11 @@ const AlunoSchema = new mongoose.Schema({
   statusTreino: { type: String, enum: ['Pendente', 'Rascunho IA', 'Enviado'], default: 'Pendente' },
   statusConta: { type: String, enum: ['Ativo', 'Off'], default: 'Ativo' },
   
-  medidas: {
-    braco: { type: String, default: "" },
-    perna: { type: String, default: "" },
-    gluteo: { type: String, default: "" },
-    torax: { type: String, default: "" },
-    cintura: { type: String, default: "" }
+  // ✅ ALTERAÇÃO: Schema.Types.Mixed permite que você envie QUALQUER medida
+  // sem precisar de definir cada campo no código.
+  medidas: { 
+    type: mongoose.Schema.Types.Mixed, 
+    default: {} 
   },
 
   treinoSemanal: [RotinaDiariaSchema],
