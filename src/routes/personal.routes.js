@@ -8,6 +8,5 @@ const router = express.Router();
 router.post("/personal/auth", autenticarPersonal);
 
 // ✅ NOVA ROTA: O recebedor invisível dos pagamentos da Kiwify
-router.post("/webhook-kiwify", processarWebhookKiwify);
-
+router.post('/webhook-personal', processarWebhookKiwify);
 export default router;
