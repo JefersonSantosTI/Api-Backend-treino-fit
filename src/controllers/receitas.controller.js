@@ -168,6 +168,7 @@ export const tornarVip = async (req, res) => {
 
 // --- 7. WEBHOOK KIWIFY (FINALIZADO PARA WHATSAPP) ---
 // --- 7. WEBHOOK KIWIFY (AJUSTADO PARA FORMATO DE WHATSAPP BR) ---
+// --- 7. WEBHOOK KIWIFY (VERSÃO BLINDADA) ---
 export const webhookKiwify = async (req, res) => {
     try {
         const { order_status, customer, Customer, status: statusRaiz } = req.body;
@@ -176,30 +177,29 @@ export const webhookKiwify = async (req, res) => {
 
         if (status === 'paid' || status === 'approved') {
             const emailCliente = cliente.email;
-            const whatsappBruto = cliente.mobile || "";
+            // Kiwify pode enviar mobile ou phone, pegamos o que existir
+            const whatsappBruto = cliente.mobile || cliente.phone || "";
             
-            // 1. Limpa tudo (deixa só números)
+            // Limpa tudo (deixa só números)
             const whatsappCompleto = whatsappBruto.replace(/\D/g, ""); 
-            
-            // 2. Cria uma versão sem o "55" (caso o usuário tenha salvo apenas o DDD no app)
+            // Remove o 55 se existir (para garantir que o DDD está puro)
             const whatsappSem55 = whatsappCompleto.startsWith("55") ? whatsappCompleto.slice(2) : whatsappCompleto;
 
-            console.log(`📡 Processando: Full(${whatsappCompleto}) | Curto(${whatsappSem55}) | Email(${emailCliente})`);
+            console.log(`📡 Processando Pagamento: WhatsApp(${whatsappCompleto}) | Email(${emailCliente})`);
 
-            // 3. Tenta encontrar o usuário usando as três possibilidades no banco
+            // Busca buscando pelo WhatsApp (preferencial) ou Email
             const usuario = await Usuario.findOneAndUpdate(
                 { 
                     $or: [
                         { WhatsApp: whatsappCompleto }, 
-                        { WhatsApp: whatsappSem55 },
-                        { email: emailCliente }
+                        { WhatsApp: whatsappSem55 }, // Caso esteja sem o 55
+                        { email: emailCliente }       // Caso o aluno tenha e-mail
                     ] 
                 },
                 { 
                     $set: { 
                         pago: true,
-                        nome: cliente.full_name || cliente.name,
-                        email: emailCliente,
+                        nome: cliente.full_name || cliente.name || "Guerreiro(a)",
                         dataPagamento: new Date(),
                         expiraEm: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) 
                     } 
@@ -208,16 +208,20 @@ export const webhookKiwify = async (req, res) => {
             );
 
             if (usuario) {
-                console.log(`✅ VIP liberado com sucesso para: ${usuario.nome}`);
+                console.log(`✅ VIP liberado com sucesso para: ${usuario.nome} (${usuario.WhatsApp})`);
                 return res.status(200).json({ status: "sucesso" });
             }
             
-            console.warn(`⚠️ Usuário não encontrado. Tentativas: ${whatsappCompleto}, ${whatsappSem55}, ${emailCliente}`);
+            console.warn(`⚠️ Usuário não encontrado no banco. 
+                Tentativas de busca: 
+                WhatsApp:${whatsappCompleto}, 
+                WhatsAppSem55:${whatsappSem55}, 
+                Email:${emailCliente}`);
         }
         
-        return res.status(200).send("OK");
+        return res.status(200).send("OK - Evento ignorado ou não é pagamento");
     } catch (err) {
-        console.error("❌ Erro no Webhook:", err.message);
-        return res.status(500).send("Erro");
+        console.error("❌ Erro Crítico no Webhook:", err.message);
+        return res.status(500).send("Erro interno");
     }
 };
