@@ -174,15 +174,11 @@ export const atualizarBiometria = async (req, res) => {
     }
 
     // Atualiza biometria base
-    aluno.peso = novosDados.peso || aluno.peso;
-    aluno.altura = novosDados.altura || aluno.altura;
-    aluno.idade = novosDados.idade || aluno.idade;
-    aluno.objetivo = novosDados.meta || aluno.objetivo; 
-    aluno.nivel = novosDados.nivel || aluno.nivel;
-    aluno.diasTreino = novosDados.diasTreino || aluno.diasTreino;
-    aluno.restricoes = novosDados.restricoes || aluno.restricoes;
-    aluno.lesoes = novosDados.lesoes || aluno.lesoes;
-    aluno.genero = novosDados.genero || aluno.genero;
+    if (novosDados.medidas) {
+    aluno.medidas = novosDados.medidas; 
+    }
+
+    await aluno.save();
 
     // ✅ SALVA AS MEDIDAS QUE O PERSONAL PREENCHEU
     if (novosDados.medidas) {
