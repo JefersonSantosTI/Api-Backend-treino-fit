@@ -54,14 +54,10 @@ export const loginAluno = async (req, res) => {
     const todosAlunos = await Aluno.find();
 
     // 2. Limpa o que o aluno digitou:
-    // .trim() tira espaços nas pontas
-    // .toLowerCase() deixa tudo minúsculo
-    // .normalize e .replace tiram TODOS os acentos (Márcio Araújo vira marcio araujo)
     const nomeBuscadoLimpo = nome.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
     // 3. Procura na lista varrendo o banco de dados e limpando os nomes de lá também
     const alunoEncontrado = todosAlunos.find(aluno => {
-      // Se no banco estiver " Márcio Araújo ", ele limpa e transforma em "marcio araujo" para comparar
       const nomeBancoLimpo = aluno.nome.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return nomeBancoLimpo === nomeBuscadoLimpo;
     });
@@ -174,21 +170,19 @@ export const atualizarBiometria = async (req, res) => {
     }
 
     // Atualiza biometria base
-    if (novosDados.medidas) {
-    aluno.medidas = novosDados.medidas; 
-    }
+    aluno.peso = novosDados.peso || aluno.peso;
+    aluno.altura = novosDados.altura || aluno.altura;
+    aluno.idade = novosDados.idade || aluno.idade;
+    aluno.objetivo = novosDados.meta || aluno.objetivo; 
+    aluno.nivel = novosDados.nivel || aluno.nivel;
+    aluno.diasTreino = novosDados.diasTreino || aluno.diasTreino;
+    aluno.restricoes = novosDados.restricoes || aluno.restricoes;
+    aluno.lesoes = novosDados.lesoes || aluno.lesoes;
+    aluno.genero = novosDados.genero || aluno.genero;
 
-    await aluno.save();
-
-    // ✅ SALVA AS MEDIDAS QUE O PERSONAL PREENCHEU
+    // ✅ CORREÇÃO: SALVA TODAS AS MEDIDAS QUE O PERSONAL PREENCHEU SEM SOBRESCREVER
     if (novosDados.medidas) {
-      aluno.medidas = {
-        braco: novosDados.medidas.braco || aluno.medidas?.braco || "",
-        perna: novosDados.medidas.perna || aluno.medidas?.perna || "",
-        gluteo: novosDados.medidas.gluteo || aluno.medidas?.gluteo || "",
-        torax: novosDados.medidas.torax || aluno.medidas?.torax || "",
-        cintura: novosDados.medidas.cintura || aluno.medidas?.cintura || ""
-      };
+      aluno.medidas = novosDados.medidas; 
     }
 
     await aluno.save();
