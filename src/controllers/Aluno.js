@@ -24,7 +24,9 @@ const CheckinSchema = new mongoose.Schema({
     intensidade: String,
     carga: String,
     comentario: String
-  }
+  },
+  // ✅ ADICIONADO: Campo para armazenar a resposta do Treinador ao aluno
+  respostaPersonal: { type: String, default: "" }
 }, { timestamps: true });
 
 const AlunoSchema = new mongoose.Schema({
@@ -36,7 +38,6 @@ const AlunoSchema = new mongoose.Schema({
   statusTreino: { type: String, enum: ['Pendente', 'Rascunho IA', 'Enviado'], default: 'Pendente' },
   statusConta: { type: String, enum: ['Ativo', 'Off'], default: 'Ativo' },
   
-  // 🔥 A SOLUÇÃO ESTÁ AQUI: Declarando os campos para o MongoDB não apagar! 🔥
   peso: { type: Number },
   altura: { type: Number },
   idade: { type: Number },
@@ -46,8 +47,6 @@ const AlunoSchema = new mongoose.Schema({
   restricoes: { type: String, default: '' },
   lesoes: { type: String, default: '' },
 
-  // Schema.Types.Mixed permite que você envie QUALQUER medida
-  // sem precisar definir cada campo no código.
   medidas: { 
     type: mongoose.Schema.Types.Mixed, 
     default: {} 

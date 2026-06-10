@@ -220,3 +220,25 @@ export const atualizarBiometria = async (req, res) => {
     res.status(500).json({ erro: error.message });
   }
 };
+
+export const responderCheckin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dataCheckin, resposta } = req.body;
+    
+    const aluno = await Aluno.findById(id);
+    if (!aluno) return res.status(404).json({ mensagem: 'Aluno não encontrado.' });
+
+    // Localiza o check-in específico pelo dia
+    const checkin = aluno.checkins.find(c => c.data === dataCheckin);
+    if (!checkin) return res.status(404).json({ mensagem: 'Check-in não encontrado.' });
+
+    // Injeta a resposta do Personal e salva
+    checkin.respostaPersonal = resposta;
+    await aluno.save();
+    
+    res.status(200).json(aluno);
+  } catch (error) { 
+    res.status(500).json({ erro: error.message }); 
+  }
+};
