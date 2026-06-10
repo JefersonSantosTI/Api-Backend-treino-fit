@@ -36,8 +36,18 @@ const AlunoSchema = new mongoose.Schema({
   statusTreino: { type: String, enum: ['Pendente', 'Rascunho IA', 'Enviado'], default: 'Pendente' },
   statusConta: { type: String, enum: ['Ativo', 'Off'], default: 'Ativo' },
   
-  // ✅ ALTERAÇÃO: Schema.Types.Mixed permite que você envie QUALQUER medida
-  // sem precisar de definir cada campo no código.
+  // 🔥 A SOLUÇÃO ESTÁ AQUI: Declarando os campos para o MongoDB não apagar! 🔥
+  peso: { type: Number },
+  altura: { type: Number },
+  idade: { type: Number },
+  genero: { type: String, default: 'Masculino' },
+  nivel: { type: String, default: 'Intermediário' },
+  diasTreino: { type: String, default: '5' },
+  restricoes: { type: String, default: '' },
+  lesoes: { type: String, default: '' },
+
+  // Schema.Types.Mixed permite que você envie QUALQUER medida
+  // sem precisar definir cada campo no código.
   medidas: { 
     type: mongoose.Schema.Types.Mixed, 
     default: {} 
