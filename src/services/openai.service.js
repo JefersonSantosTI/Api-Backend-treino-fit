@@ -104,7 +104,10 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
         ],
         "dieta": [
           { "refeicao": "07:00 - Café da Manhã", "itens": "Descrição atrativa (Ex: 3 ovos mexidos com 50g de aveia e canela)" },
-          { "refeicao": "13:00 - Almoço", "itens": "Descrição atrativa (Ex: 150g de patinho moído, 100g de arroz e brócolis cozido)" }
+          { "refeicao": "10:00 - Lanche da Manhã", "itens": "Descrição atrativa (Ex: 1 maçã e 30g de whey protein)" },
+          { "refeicao": "13:00 - Almoço", "itens": "Descrição atrativa (Ex: 150g de patinho moído, 100g de arroz e brócolis cozido)" },
+          { "refeicao": "16:00 - Lanche da Tarde", "itens": "Descrição atrativa (Ex: 2 fatias de pão integral com 50g de frango desfiado)" },
+          { "refeicao": "20:00 - Jantar", "itens": "Descrição atrativa (Ex: 150g de tilápia, 100g de batata doce e brócolis)" }
         ]
       }`;
     
