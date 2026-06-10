@@ -86,8 +86,10 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
         - Prescreva exatamente 8 exercícios por dia para níveis intermediário/avançado.
         - Substitua imediatamente exercícios proibidos para a lesão "${lesoes}". Se dor no joelho, evite extensora pesada, use agachamento controlado.
 
-      4️⃣ PRESCRIÇÃO NUTRICIONAL DETALHADA:
-        - Utilize os macros calculados como alvo estrito. Crie uma dieta variada que respeite "${restricoes}". Se meta=Hipertrofia, a dieta deve ser densamente calórica; se Emagrecimento, foco em volume alimentar e saciedade com calorias controladas.
+      4️⃣ PRESCRIÇÃO NUTRICIONAL DETALHADA E CRONOGRAMA:
+        - Utilize os macros calculados como alvo estrito. Crie uma dieta variada que respeite "${restricoes}".
+        - OBRIGATÓRIO dividir a dieta nos seguintes horários padrão: 07:00 (Café da Manhã), 10:00 (Lanche da Manhã), 13:00 (Almoço), 16:00 (Lanche da Tarde) e 20:00 (Jantar). Adicione 22:00 (Ceia) apenas se a caloria final for muito alta.
+        - Se meta=Hipertrofia, a dieta deve ser densamente calórica; se Emagrecimento, foco em volume alimentar e saciedade com calorias controladas.
 
       ⚠️ RETORNO ESTRITO EM JSON (Não gere texto adicional):
 
@@ -103,7 +105,11 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
           }
         ],
         "dieta": [
-          { "refeicao": "Café da Manhã", "itens": "Descrição detalhada (Ex: 3 ovos mexidos com 50g de aveia)" }
+          { "refeicao": "07:00 - Café da Manhã", "itens": "Descrição detalhada (Ex: 3 ovos mexidos com 50g de aveia)" },
+          { "refeicao": "10:00 - Lanche da Manhã", "itens": "Descrição detalhada (Ex: 1 maçã e 30g de whey protein)" },
+          { "refeicao": "13:00 - Almoço", "itens": "Descrição detalhada (Ex: 150g de frango, 100g de arroz e salada à vontade)" },
+          { "refeicao": "16:00 - Lanche da Tarde", "itens": "Descrição detalhada (Ex: 2 fatias de pão integral com 50g de frango desfiado)" },
+          { "refeicao": "20:00 - Jantar", "itens": "Descrição detalhada (Ex: 150g de tilápia, 100g de batata doce e brócolis)" }
         ]
       }`;
     
