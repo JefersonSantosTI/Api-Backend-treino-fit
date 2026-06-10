@@ -146,7 +146,7 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       - Libere os blocos de dieta (Café, Almoço, Lanches, Jantar).
       - Formato: Opção X: [Alimento e Peso] -> **P: Xg | C: Xg | G: Xg** | [Kcal]
 
-      [MONETIZAÇÃO E PARCERIA - RODA PÉ OBRIGATÓRIO (APENAS NA FASE 2)]
+      [MONETIZAÇÃO E PARCERIA - RODA PÉ OBRIGATÓRIO]
       ---
       🛒 **FACILITE SUA DIETA COM NOSSO PARCEIRO OFICIAL**
       Gostou do plano? Peça todos os ingredientes da sua dieta (carnes, hortifruti) fresquinhos sem sair de casa!
