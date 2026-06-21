@@ -59,9 +59,10 @@ const AlunoSchema = new mongoose.Schema({
   metaAgua: { type: String, default: 'Não calculada' },
   lembreteAgua: {
     ativo: { type: Boolean, default: false },
-    horaInicio: { type: Number, default: 8 }, 
-    horaFim: { type: Number, default: 22 },   
-    intervaloHoras: { type: Number, default: 2 } 
+    horaInicio: { type: Number, default: 8 },
+    horaFim: { type: Number, default: 22 },
+    intervaloHoras: { type: Number, default: 2 },
+    pushSubscription: { type: mongoose.Schema.Types.Mixed, default: null } // ✅ ADICIONE ESTA LINHA
   },
 
   checkins: [CheckinSchema]

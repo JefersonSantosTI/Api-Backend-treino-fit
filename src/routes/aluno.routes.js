@@ -10,9 +10,9 @@ import {
   matricularViaLinkIA,
   atualizarBiometria,
   responderCheckin,
-  configurarLembreteAgua // ✅ ADICIONADO: Importação da função da água
+  salvarAssinaturaPush,
+  configurarLembreteAgua // <--- ADICIONE ISSO AQUI
 } from '../controllers/aluno.controller.js';
-
 const router = Router();
 
 // MÓDULO ALUNO
@@ -21,7 +21,7 @@ router.post('/aluno', criarAluno);
 router.post('/aluno/matricula-ia', matricularViaLinkIA); 
 router.put('/aluno/:id/atualizar-biometria', atualizarBiometria);
 router.put('/aluno/:id/agua', configurarLembreteAgua); // ✅ ADICIONADO: Rota para salvar a configuração de água no banco
-
+router.put('/aluno/:id/salvar-assinatura', salvarAssinaturaPush);
 // MÓDULO PERSONAL
 router.get('/personal/alunos', obterAlunosAssessoria);
 router.post('/aluno/:id/prescrever', prescreverTreino);
