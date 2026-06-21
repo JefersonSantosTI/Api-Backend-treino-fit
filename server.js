@@ -5,7 +5,11 @@ import cors from "cors";
 import mongoose from "mongoose";
 import receitasRoutes from "./src/routes/receitas.route.js"; 
 import alunoRoutes from "./src/routes/aluno.routes.js"; 
-import personalRoutes from "./src/routes/personal.routes.js"; // ✅ ADICIONADO: Importando as novas rotas do Personal
+import personalRoutes from "./src/routes/personal.routes.js";
+
+// ✅ ADICIONADO: Importando o serviço de Cron Job para ativar os lembretes automáticos!
+// Obs: Ajuste o caminho "./src/services/lembreteAgua.service.js" conforme a pasta real onde você salvou o arquivo
+import "./src/services/lembreteAgua.service.js"; 
 
 const app = express();
 
@@ -40,7 +44,7 @@ mongoose.connect(process.env.MONGO_URI)
 // --- ROTAS ---
 app.use("/api", receitasRoutes);
 app.use("/api", alunoRoutes); 
-app.use("/api", personalRoutes); // ✅ ADICIONADO: Ativando a rota /api/personal/auth no servidor
+app.use("/api", personalRoutes);
 
 app.get("/", (req, res) => {
   res.send("API TreinoFit - Online e Sincronizada");

@@ -54,7 +54,16 @@ const AlunoSchema = new mongoose.Schema({
 
   treinoSemanal: [RotinaDiariaSchema],
   dietaPrescrita: [RefeicaoSchema],
+  
+  // ✅ CORRIGIDO: Meta de água e as configurações de notificação agrupadas corretamente
   metaAgua: { type: String, default: 'Não calculada' },
+  lembreteAgua: {
+    ativo: { type: Boolean, default: false },
+    horaInicio: { type: Number, default: 8 }, 
+    horaFim: { type: Number, default: 22 },   
+    intervaloHoras: { type: Number, default: 2 } 
+  },
+
   checkins: [CheckinSchema]
 }, { timestamps: true });
 

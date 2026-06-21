@@ -241,4 +241,31 @@ export const responderCheckin = async (req, res) => {
   } catch (error) { 
     res.status(500).json({ erro: error.message }); 
   }
+
+  
+};
+
+// No aluno.controller.js
+export const configurarLembreteAgua = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ativo, horaInicio, horaFim, intervaloHoras } = req.body;
+
+    const alunoAtualizado = await Aluno.findByIdAndUpdate(
+      id,
+      { 
+        lembreteAgua: { 
+          ativo, 
+          horaInicio: Number(horaInicio), 
+          horaFim: Number(horaFim), 
+          intervaloHoras: Number(intervaloHoras) 
+        } 
+      },
+      { new: true }
+    );
+
+    res.status(200).json(alunoAtualizado);
+  } catch (error) {
+    res.status(500).json({ erro: error.message });
+  }
 };

@@ -33,8 +33,10 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
     const imc = (peso / (altura * altura)).toFixed(1);
     
     // ÁGUA (Padrão Clínico Esportivo Seguro)
+    // ÁGUA (Padrão Clínico Esportivo Seguro)
     const multiplicadorAgua = meta.toLowerCase().includes("hipertrofia") ? 50 : 40;
-    const litrosAgua = ((peso * multiplicadorAgua) / 1000).toFixed(1);
+    const mlAgua = Math.round(peso * multiplicadorAgua); // ✅ Adicionamos o cálculo direto em ML
+    const litrosAgua = (mlAgua / 1000).toFixed(1);
 
     // GASTO ENERGÉTICO TOTAL (Fator de Atividade Realista baseado na frequência)
     let fatorAtividade = 1.2; // Sedentário base
@@ -92,7 +94,7 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       ⚠️ RETORNO ESTRITO EM JSON (Não gere texto adicional):
 
       {
-        "agua": "${litrosAgua} Litros/dia",
+        "agua": "${mlAgua}ml", // ✅ Agora vai retornar algo como "2800ml"
         "treinoSemanal": [
           {
             "dia": "Segunda",
@@ -145,6 +147,12 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       FASE 2: Plano Alimentar (Entregue se as perguntas já tiverem sido respondidas).
       - Libere os blocos de dieta (Café, Almoço, Lanches, Jantar).
       - Formato: Opção X: [Alimento e Peso] -> **P: Xg | C: Xg | G: Xg** | [Kcal]
+
+      4️⃣ PRESCRIÇÃO NUTRICIONAL ESTRATÉGICA (MÁXIMA ATENÇÃO):
+      - O aluno declarou as seguintes preferências e restrições: "${restricoes}".
+      - REGRA DOS FAVORITOS (CRÍTICO): Se a declaração acima contiver a frase "Gosta de:", você DEVE construir a base da dieta OBRIGATORIAMENTE incluindo esses alimentos nas refeições principais. O aluno os selecionou no aplicativo e não aceitará um plano sem eles.
+      - FORMATO OBRIGATÓRIO: Apresente o plano alimentar de forma extremamente nítida. Pule linhas entre as refeições e use cabeçalhos com horários específicos (Ex: "⏰ 08:00 - Café da Manhã"). É proibido gerar blocos de texto aglomerados.
+      - Respeite rigorosamente a meta de ${caloriasFinais} kcal (Prot: ${proteinaAlvo}g, Gord: ${gorduraAlvo}g, Carb: ${carboAlvo}g).
 
       [MONETIZAÇÃO E PARCERIA - RODA PÉ OBRIGATÓRIO]
       ---
