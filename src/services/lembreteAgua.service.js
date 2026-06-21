@@ -51,8 +51,17 @@ const processarLembretesDeAgua = async () => {
     });
 
     for (const aluno of alunos) {
+      // ✅ ADICIONE ESTE LOG PARA VER O QUE O SERVIDOR ESTÁ VENDO
+      console.log(`🔍 Analisando aluno: ${aluno.nome}. Tem assinatura? ${!!aluno.lembreteAgua.pushSubscription}`);
+      
       const { horaInicio, horaFim, intervaloHoras, pushSubscription } = aluno.lembreteAgua;
 
+      if (!pushSubscription) {
+        console.log(`⚠️ Aluno ${aluno.nome} não tem assinatura registrada. Ative no App!`);
+        continue;
+      }
+      
+      // ... resto do seu código
       // Se o aluno não ativou a notificação no navegador (não tem assinatura), pula ele
       if (!pushSubscription) continue;
 
