@@ -37,7 +37,12 @@ const extrairMlDaMeta = (metaStr) => {
 };
 
 const processarLembretesDeAgua = async () => {
-  const horaAtual = new Date().getHours(); 
+  // ✅ AJUSTE: Forçando o horário para o Fuso de Brasília (UTC-3)
+  const now = new Date();
+  const utcHora = now.getUTCHours();
+  const horaAtual = (utcHora - 3 + 24) % 24; 
+  
+  console.log(`⏳ [DEBUG] Hora real (Brasil): ${horaAtual}h`);
   
   try {
     const alunos = await Aluno.find({ 
@@ -46,22 +51,24 @@ const processarLembretesDeAgua = async () => {
     });
 
     for (const aluno of alunos) {
-      const { horaInicio, horaFim, intervaloHoras } = aluno.lembreteAgua;
+      const { horaInicio, horaFim, intervaloHoras, pushSubscription } = aluno.lembreteAgua;
 
-      // ⚠️ IMPORTANTE: Precisamos que o banco tenha a Assinatura do aluno salva!
-      // Se não tiver, pula ele (faremos isso no Frontend no próximo passo)
-      if (!aluno.lembreteAgua.pushSubscription) continue;
+      // Se o aluno não ativou a notificação no navegador (não tem assinatura), pula ele
+      if (!pushSubscription) continue;
 
+      // Verifica se a hora atual está dentro do intervalo configurado
       if (horaAtual >= horaInicio && horaAtual <= horaFim) {
+        
+        // Verifica se a hora atual bate com o intervalo escolhido
         if ((horaAtual - horaInicio) % intervaloHoras === 0) {
           
           const metaTotalMl = extrairMlDaMeta(aluno.metaAgua);
           const totalDisparosNoDia = Math.floor((horaFim - horaInicio) / intervaloHoras) + 1;
           const quantidadePorCopo = Math.round(metaTotalMl / totalDisparosNoDia);
 
-          const mensagem = `${aluno.nome.split(' ')[0]}, beba exatamente ${quantidadePorCopo}ml de água agora para manter seu corpo em alta performance! 🚀`;
+          const mensagem = `${aluno.nome.split(' ')[0]}, beba ${quantidadePorCopo}ml de água agora para manter seu corpo em alta performance! 🚀`;
 
-          await dispararPushNotification(aluno.lembreteAgua.pushSubscription, mensagem);
+          await dispararPushNotification(pushSubscription, mensagem);
         }
       }
     }
