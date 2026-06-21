@@ -247,15 +247,32 @@ export const responderCheckin = async (req, res) => {
 
 // No aluno.controller.js
 // Adicione estas funções ao seu aluno.controller.js
+// Substitua a sua função configurarLembreteAgua por esta:
 export const configurarLembreteAgua = async (req, res) => {
   try {
     const { id } = req.params;
-    const { ativo, horaInicio, horaFim, intervaloHoras } = req.body;
-    await Aluno.findByIdAndUpdate(id, { 
-      lembreteAgua: { ativo, horaInicio, horaFim, intervaloHoras } 
-    });
-    res.status(200).json({ mensagem: "Configurado!" });
-  } catch (error) { res.status(500).json({ erro: error.message }); }
+    const { ativo, horaInicio, horaFim, intervaloHoras, subscription } = req.body;
+
+    const updateData = { 
+      lembreteAgua: { 
+        ativo, 
+        horaInicio: Number(horaInicio), 
+        horaFim: Number(horaFim), 
+        intervaloHoras: Number(intervaloHoras) 
+      } 
+    };
+
+    // Se o frontend enviou a assinatura (o objeto complexo do navegador), salvamos também
+    if (subscription) {
+      updateData.lembreteAgua.pushSubscription = subscription;
+    }
+
+    const alunoAtualizado = await Aluno.findByIdAndUpdate(id, updateData, { new: true });
+
+    res.status(200).json(alunoAtualizado);
+  } catch (error) {
+    res.status(500).json({ erro: error.message });
+  }
 };
 
 export const salvarAssinaturaPush = async (req, res) => {
