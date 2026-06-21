@@ -78,8 +78,7 @@ const processarLembretesDeAgua = async () => {
 };
 
 // Deixando no MODO TURBO para você testar (depois volta para '0 * * * *')
-cron.schedule('* * * * *', () => {
+// ✅ VOLTANDO PARA MODO PRODUÇÃO: Roda apenas no minuto ZERO de cada hora
+cron.schedule('0 * * * *', () => {
   processarLembretesDeAgua();
 });
-
-export { processarLembretesDeAgua };
