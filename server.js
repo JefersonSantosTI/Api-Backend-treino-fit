@@ -3,12 +3,16 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+
+// --- IMPORTAÇÃO DAS ROTAS ANTIGAS ---
 import receitasRoutes from "./src/routes/receitas.route.js"; 
 import alunoRoutes from "./src/routes/aluno.routes.js"; 
 import personalRoutes from "./src/routes/personal.routes.js";
 
-// ✅ ADICIONADO: Importando o serviço de Cron Job para ativar os lembretes automáticos!
-// Obs: Ajuste o caminho "./src/services/lembreteAgua.service.js" conforme a pasta real onde você salvou o arquivo
+// ✅ NOVA ROTA ADICIONADA: Landing Page / Home do App
+import landingRoutes from "./src/routes/landingRoutes.js"; 
+
+// ✅ ADICIONADO: Serviço de Cron Job (Lembretes)
 import "./src/services/lembreteAgua.service.js"; 
 
 const app = express();
@@ -41,15 +45,16 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB conectado com sucesso!"))
   .catch(err => console.error("❌ Erro MongoDB:", err));
 
-// --- ROTAS ---
+// --- 🚀 NOVAS ROTAS DA SUA PÁGINA DE APRESENTAÇÃO ---
+// Substitui a rota antiga de "/" para carregar o seu novo visual lindo!
+app.use("/", landingRoutes);
+
+// --- ROTAS DA API ---
 app.use("/api", receitasRoutes);
 app.use("/api", alunoRoutes); 
 app.use("/api", personalRoutes);
 
-app.get("/", (req, res) => {
-  res.send("API TreinoFit - Online e Sincronizada");
-});
-
+// --- INICIALIZAÇÃO DO SERVIDOR ---
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor online na porta ${PORT}`);
