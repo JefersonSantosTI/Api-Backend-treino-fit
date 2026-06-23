@@ -4,13 +4,10 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 
-// --- IMPORTAÇÃO DAS ROTAS ANTIGAS ---
+// --- IMPORTAÇÃO DAS ROTAS ---
 import receitasRoutes from "./src/routes/receitas.route.js"; 
 import alunoRoutes from "./src/routes/aluno.routes.js"; 
 import personalRoutes from "./src/routes/personal.routes.js";
-
-// ✅ NOVA ROTA ADICIONADA: Landing Page / Home do App
-import landingRoutes from "./src/routes/landingRoutes.js"; 
 
 // ✅ ADICIONADO: Serviço de Cron Job (Lembretes)
 import "./src/services/lembreteAgua.service.js"; 
@@ -45,9 +42,10 @@ mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB conectado com sucesso!"))
   .catch(err => console.error("❌ Erro MongoDB:", err));
 
-// --- 🚀 NOVAS ROTAS DA SUA PÁGINA DE APRESENTAÇÃO ---
-// Substitui a rota antiga de "/" para carregar o seu novo visual lindo!
-app.use("/", landingRoutes);
+// --- ROTA RAIZ (Aviso de status da API) ---
+app.get("/", (req, res) => {
+  res.send("API TreinoFit - Online e Sincronizada");
+});
 
 // --- ROTAS DA API ---
 app.use("/api", receitasRoutes);
