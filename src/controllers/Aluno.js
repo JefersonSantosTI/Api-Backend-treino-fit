@@ -25,7 +25,6 @@ const CheckinSchema = new mongoose.Schema({
     carga: String,
     comentario: String
   },
-  // ✅ ADICIONADO: Campo para armazenar a resposta do Treinador ao aluno
   respostaPersonal: { type: String, default: "" }
 }, { timestamps: true });
 
@@ -55,14 +54,16 @@ const AlunoSchema = new mongoose.Schema({
   treinoSemanal: [RotinaDiariaSchema],
   dietaPrescrita: [RefeicaoSchema],
   
-  // ✅ CORRIGIDO: Meta de água e as configurações de notificação agrupadas corretamente
   metaAgua: { type: String, default: 'Não calculada' },
+  
+  // ✅ ATUALIZADO: Com o novo campo tipoFrequencia
   lembreteAgua: {
     ativo: { type: Boolean, default: false },
     horaInicio: { type: Number, default: 8 },
     horaFim: { type: Number, default: 22 },
     intervaloHoras: { type: Number, default: 2 },
-    pushSubscription: { type: mongoose.Schema.Types.Mixed, default: null } // ✅ ADICIONE ESTA LINHA
+    tipoFrequencia: { type: String, enum: ['Diário', 'Mensal', 'Definitivo'], default: 'Definitivo' },
+    pushSubscription: { type: mongoose.Schema.Types.Mixed, default: null } 
   },
 
   checkins: [CheckinSchema]

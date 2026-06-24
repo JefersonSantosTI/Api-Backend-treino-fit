@@ -9,7 +9,7 @@ import receitasRoutes from "./src/routes/receitas.route.js";
 import alunoRoutes from "./src/routes/aluno.routes.js"; 
 import personalRoutes from "./src/routes/personal.routes.js";
 
-// ✅ ADICIONADO: Serviço de Cron Job (Lembretes)
+// ✅ SERVIÇO DE AUTOMAÇÃO E LEMBRETES (Cron Job rodando em background)
 import "./src/services/lembreteAgua.service.js"; 
 
 const app = express();

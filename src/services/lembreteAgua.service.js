@@ -2,12 +2,12 @@ import cron from 'node-cron';
 import Aluno from '../controllers/Aluno.js'; 
 import webpush from 'web-push';
 
-// Configuração Gratuita do Web Push
 const VAPID_PUBLIC_KEY = 'BH1RQXRkaFukYxIKfMfqqN1MEh_ruMEMk1toExeB_3K2nrVHzS_Px5WNtoPto0i5LosEdNNQ_MTV6amGefJyoXc';
 const VAPID_PRIVATE_KEY = 'lbC3MPr_a1RK0RkxC0ZSxc-OYsx4qtdksO-Hw2DlCO0';
 
+// ✅ CORREÇÃO DE SEGURANÇA: Configurando com um e-mail válido para evitar bloqueios
 webpush.setVapidDetails(
-  'mailto:contato@seusite.com',
+  'mailto:jeferson@treinofit.app.br', 
   VAPID_PUBLIC_KEY,
   VAPID_PRIVATE_KEY
 );
@@ -15,32 +15,39 @@ webpush.setVapidDetails(
 const dispararPushNotification = async (assinatura, texto) => {
   try {
     const payload = JSON.stringify({
-      title: "💧 Hora da Hidratação!",
+      title: "💧 Alerta de Hidratação IA",
       body: texto,
       icon: "/logo192.png"
     });
-
     await webpush.sendNotification(assinatura, payload);
-    console.log(`🔔 [Push] Sucesso! Notificação enviada para o aluno.`);
+    console.log(`===🔔 [Push] Enviado com sucesso!===`);
   } catch (err) {
-    console.error(`❌ Erro no Push:`, err.message);
+    console.error(`❌ Erro físico no envio do Push:`, err.message);
   }
 };
 
+// Transforma "4.2 Litros/dia" ou "4,2" em 4200 pura numeração boba
 const extrairMlDaMeta = (metaStr) => {
-  if (!metaStr || metaStr === "Não calculada") return 2000;
-  const numeros = metaStr.match(/\d+/g);
-  if (!numeros) return 2000;
-  const valorMl = Math.max(...numeros.map(Number));
-  return valorMl < 100 ? valorMl * 1000 : valorMl; 
+  if (!metaStr || metaStr === "Não calculada") return 3500; // Padrão de segurança
+  // Pega todos os números e pontos/vírgulas
+  const limpo = metaStr.replace(',', '.');
+  const numero = parseFloat(limpo.match(/[\d.]+/g));
+  if (!numero) return 3500;
+  
+  // Se o usuário digitou em formato de litros (ex: 4.2), multiplica por 1000
+  return numero < 100 ? Math.round(numero * 1000) : Math.round(numero);
 };
 
 const processarLembretesDeAgua = async () => {
   const now = new Date();
   const utcHora = now.getUTCHours();
-  const horaAtual = (utcHora - 3 + 24) % 24; 
+  const horaAtual = (utcHora - 3 + 24) % 24; // Horário padrão de Brasília
+  const minutoAtual = now.getMinutes();
   
-  console.log(`⏳ [DEBUG] Hora real (Brasil): ${horaAtual}h`);
+  // ✅ MODO DE PRODUÇÃO ATIVADO: O disparador só roda exato no minuto 00 da hora (ex: 13:00, 14:00)
+  if (minutoAtual !== 0) return;
+
+  console.log(`⏳ [PRODUÇÃO] Verificando disparos para a hora cheia: ${horaAtual}:00h`);
   
   try {
     const alunos = await Aluno.find({ 
@@ -49,47 +56,58 @@ const processarLembretesDeAgua = async () => {
     });
 
     for (const aluno of alunos) {
-      const { horaInicio, horaFim, intervaloHoras, pushSubscription } = aluno.lembreteAgua;
+      const { horaInicio, horaFim, intervaloHoras, pushSubscription, tipoFrequencia } = aluno.lembreteAgua;
       
-      console.log(`🔍 Analisando aluno: ${aluno.nome}. Assinatura: ${!!pushSubscription}`);
+      if (!pushSubscription) continue;
 
-      if (!pushSubscription) {
-        continue;
-      }
-      
-      // ✅ AJUSTE CRÍTICO: Garantindo que são números
       const hStart = Number(horaInicio);
       const hEnd = Number(horaFim);
       const interval = Number(intervaloHoras);
 
-      console.log(`🔍 DEBUG MATEMÁTICA: Aluno: ${aluno.nome} | Hora Atual: ${horaAtual} | Config: ${hStart} até ${hEnd} | Intervalo: ${interval}`);
-
+      // 1. Validação de Janela de Horário Escolhida pelo Aluno
       if (horaAtual >= hStart && horaAtual <= hEnd) {
+        
+        // Verifica se a hora atual coincide matematicamente com o intervalo do aluno
         const resto = (horaAtual - hStart) % interval;
-        console.log(`🔍 DEBUG RESTO: (${horaAtual} - ${hStart}) % ${interval} = ${resto}`);
         
         if (resto === 0) {
+          // 2. MATEMÁTICA DA IA: Descobrir o volume exato por copo
           const metaTotalMl = extrairMlDaMeta(aluno.metaAgua);
-          const totalDisparosNoDia = Math.floor((hEnd - hStart) / interval) + 1;
+          const horasAcordado = hEnd - hStart;
+          
+          // Total de vezes que o sistema vai apitar para esse aluno no dia
+          const totalDisparosNoDia = Math.floor(horasAcordado / interval) + 1;
+          
+          // ML exato de cada meta fracionada
           const quantidadePorCopo = Math.round(metaTotalMl / totalDisparosNoDia);
 
-          const mensagem = `${aluno.nome.split(' ')[0]}, beba ${quantidadePorCopo}ml de água agora para manter seu corpo em alta performance! 🚀`;
+          const primeiroNome = aluno.nome.split(' ')[0];
+          const mensagem = `Fala ${primeiroNome}, hora de mandar ${quantidadePorCopo}ml de água para dentro! Falta pouco para bater sua meta de ${aluno.metaAgua}. 🚀`;
 
+          // 3. Disparar
           await dispararPushNotification(pushSubscription, mensagem);
-        } else {
-            console.log(`❌ Condição não atendida para ${aluno.nome} (o resto não é 0).`);
+
+          // 4. Regra de finalização caso seja um plano temporário (Diário)
+          if (tipoFrequencia === 'Diário' && horaAtual === hEnd) {
+             console.log(`✨ [IA] Desativando lembrete Diário concluído para: ${aluno.nome}`);
+             aluno.lembreteAgua.ativo = false;
+             await aluno.save();
+          }
         }
-      } else {
-          console.log(`❌ Fora do horário de disparo para ${aluno.nome}.`);
+      }
+      
+      // Limpeza Mensal Automática: Se for dia 1 do mês às 00h, reseta os planos 'Mensal' se necessário
+      if (tipoFrequencia === 'Mensal' && now.getDate() === 1 && horaAtual === hStart) {
+         // Lógica para controle ou renovação mensal futura aqui se quiser
       }
     }
   } catch (error) {
-    console.error('❌ Erro no Cron de água:', error.message);
+    console.error('❌ Erro Crítico no processamento de água:', error.message);
   }
 };
 
-// MODO TURBO ATIVADO
-cron.schedule('* * * * *', () => { 
+// ✅ ALTERADO: Agora roda de hora em hora de forma profissional para não estressar o celular
+cron.schedule('0 * * * *', () => { 
   processarLembretesDeAgua();
 });
 

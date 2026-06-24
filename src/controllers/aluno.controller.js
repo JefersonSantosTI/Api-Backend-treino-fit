@@ -158,6 +158,9 @@ export const matricularViaLinkIA = async (req, res) => {
 // =========================================================
 // ✅ NOVA FUNÇÃO: ATUALIZA BIOMETRIA E RECALCULA IA (EDICAO PELO PERSONAL)
 // =========================================================
+// =========================================================
+// ✅ ATUALIZADO: SALVA BIOMETRIA E MEDIDAS SEM APAGAR O TREINO MANUAL
+// =========================================================
 export const atualizarBiometria = async (req, res) => {
   try {
     const { id } = req.params;
@@ -169,25 +172,42 @@ export const atualizarBiometria = async (req, res) => {
       return res.status(404).json({ mensagem: "Aluno não encontrado no banco de dados." });
     }
 
-    // Atualiza biometria base
-    aluno.peso = novosDados.peso || aluno.peso;
-    aluno.altura = novosDados.altura || aluno.altura;
-    aluno.idade = novosDados.idade || aluno.idade;
-    aluno.objetivo = novosDados.meta || aluno.objetivo; 
+    // Atualiza apenas os dados cadastrais e perímetros biométricos
+    aluno.peso = novosDados.peso !== undefined ? novosDados.peso : aluno.peso;
+    aluno.altura = novosDados.altura !== undefined ? novosDados.altura : aluno.altura;
+    aluno.idade = novosDados.idade !== undefined ? novosDados.idade : aluno.idade;
+    aluno.objetivo = novosDados.meta || novosDados.objetivo || aluno.objetivo; 
     aluno.nivel = novosDados.nivel || aluno.nivel;
     aluno.diasTreino = novosDados.diasTreino || aluno.diasTreino;
     aluno.restricoes = novosDados.restricoes || aluno.restricoes;
     aluno.lesoes = novosDados.lesoes || aluno.lesoes;
     aluno.genero = novosDados.genero || aluno.genero;
 
-    // ✅ CORREÇÃO: SALVA TODAS AS MEDIDAS QUE O PERSONAL PREENCHEU SEM SOBRESCREVER
     if (novosDados.medidas) {
       aluno.medidas = novosDados.medidas; 
     }
 
     await aluno.save();
+    res.status(200).json(aluno); // Retorna com sucesso apenas salvando os perímetros
+  } catch (error) {
+    console.error("Erro ao salvar biometria:", error);
+    res.status(500).json({ erro: error.message });
+  }
+};
 
-    // Monta o payload para injetar no openai.service.js
+// =========================================================
+// ✅ NOVA FUNÇÃO: EXCLUSIVA DO BOTÃO MÁGICO IA (PREENCHIMENTO AUTOMÁTICO)
+// =========================================================
+export const gerarPlanoIAPersonal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const aluno = await Aluno.findById(id);
+    
+    if (!aluno) {
+      return res.status(404).json({ mensagem: "Aluno não encontrado." });
+    }
+
+    // Monta o payload injetando as medidas corporais que o Personal acabou de atualizar
     const payloadIA = {
       nome: aluno.nome,
       peso: aluno.peso,
@@ -199,50 +219,31 @@ export const atualizarBiometria = async (req, res) => {
       diasTreino: aluno.diasTreino,
       restricoes: aluno.restricoes,
       lesoes: aluno.lesoes,
-      // ✅ INJETA AS MEDIDAS PARA A IA FICAR AGRESSIVA NA PRESCRIÇÃO
       medidasCorporais: aluno.medidas 
     };
 
-    // A IA VAI LER AS MEDIDAS AQUI PARA GERAR O TREINO E A DIETA
     const promptFake = [{ role: "user", content: `Recalcule o plano completo para o aluno ${aluno.nome}. Leia atentamente as medidas corporais, se existirem, para direcionar o foco hipertrófico ou de perda de medidas localizadas.` }];
+    
+    // Dispara o motor da OpenAI para ler a nova biometria e recalcular tudo
     const novaPrescricaoIA = await obterRespostaReceitas(promptFake, payloadIA, "personal_ia");
 
-    // Injeta a nova prescrição de volta no banco
     aluno.treinoSemanal = novaPrescricaoIA.treinoSemanal || aluno.treinoSemanal;
     aluno.dietaPrescrita = novaPrescricaoIA.dieta || aluno.dietaPrescrita;
     aluno.metaAgua = novaPrescricaoIA.agua || aluno.metaAgua;
     aluno.statusTreino = "Rascunho IA"; 
 
     await aluno.save();
-    res.status(200).json(aluno);
+
+    // Retorna os dados mastigados para o Front-end preencher os campos automaticamente
+    res.status(200).json({
+      treinoSemanal: aluno.treinoSemanal,
+      dietaPrescrita: aluno.dietaPrescrita,
+      metaAgua: aluno.metaAgua
+    });
   } catch (error) {
-    console.error("Erro Crítico ao atualizar biometria e recalcular IA:", error);
+    console.error("Erro Crítico no Botão Mágico IA:", error);
     res.status(500).json({ erro: error.message });
   }
-};
-
-export const responderCheckin = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { dataCheckin, resposta } = req.body;
-    
-    const aluno = await Aluno.findById(id);
-    if (!aluno) return res.status(404).json({ mensagem: 'Aluno não encontrado.' });
-
-    // Localiza o check-in específico pelo dia
-    const checkin = aluno.checkins.find(c => c.data === dataCheckin);
-    if (!checkin) return res.status(404).json({ mensagem: 'Check-in não encontrado.' });
-
-    // Injeta a resposta do Personal e salva
-    checkin.respostaPersonal = resposta;
-    await aluno.save();
-    
-    res.status(200).json(aluno);
-  } catch (error) { 
-    res.status(500).json({ erro: error.message }); 
-  }
-
-  
 };
 
 // No aluno.controller.js
@@ -251,24 +252,24 @@ export const responderCheckin = async (req, res) => {
 export const configurarLembreteAgua = async (req, res) => {
   try {
     const { id } = req.params;
-    const { ativo, horaInicio, horaFim, intervaloHoras, subscription } = req.body;
+    // ✅ ADICIONADO: Puxando o tipoFrequencia do celular
+    const { ativo, horaInicio, horaFim, intervaloHoras, tipoFrequencia, subscription } = req.body;
 
     const updateData = { 
       lembreteAgua: { 
         ativo, 
         horaInicio: Number(horaInicio), 
         horaFim: Number(horaFim), 
-        intervaloHoras: Number(intervaloHoras) 
+        intervaloHoras: Number(intervaloHoras),
+        tipoFrequencia: tipoFrequencia || 'Definitivo' // ✅ SALVANDO NO BANCO
       } 
     };
 
-    // Se o frontend enviou a assinatura (o objeto complexo do navegador), salvamos também
     if (subscription) {
       updateData.lembreteAgua.pushSubscription = subscription;
     }
 
     const alunoAtualizado = await Aluno.findByIdAndUpdate(id, updateData, { new: true });
-
     res.status(200).json(alunoAtualizado);
   } catch (error) {
     res.status(500).json({ erro: error.message });
