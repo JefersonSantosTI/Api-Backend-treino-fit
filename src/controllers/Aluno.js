@@ -12,6 +12,20 @@ const RotinaDiariaSchema = new mongoose.Schema({
   exercicios: [ExercicioSchema]
 });
 
+const alunoSchema = new mongoose.Schema({
+  nome: String,
+  email: String,
+  // ... os outros campos que você já tem ...
+
+  // 👉 ADICIONE ESTA GAVETA AQUI:
+  historicoCargas: [{
+      data: Date,
+      exercicio: String,
+      carga: Number,
+      esforco: String
+  }]
+});
+
 const RefeicaoSchema = new mongoose.Schema({
   refeicao: { type: String, required: true },
   itens: { type: String, required: true }
