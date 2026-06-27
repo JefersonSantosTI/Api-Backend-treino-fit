@@ -12,8 +12,10 @@ import {
   responderCheckin,
   salvarAssinaturaPush,
   configurarLembreteAgua,
-  gerarPlanoIAPersonal // <-- 1. ADICIONADO AQUI
+  gerarPlanoIAPersonal,
+  salvarProgressaoCarga // <-- ✅ 1. IMPORTAMOS ELA AQUI!
 } from '../controllers/aluno.controller.js';
+
 const router = Router();
 
 // MÓDULO ALUNO
@@ -21,11 +23,12 @@ router.get('/aluno/login', loginAluno);
 router.post('/aluno', criarAluno);
 router.post('/aluno/matricula-ia', matricularViaLinkIA); 
 router.put('/aluno/:id/atualizar-biometria', atualizarBiometria);
-router.post('/aluno/:id/gerar-plano-ia-personal', gerarPlanoIAPersonal); // ✅ 2. ROTA DO BOTÃO MÁGICO CONECTADA!
+router.post('/aluno/:id/gerar-plano-ia-personal', gerarPlanoIAPersonal); 
 router.put('/aluno/:id/agua', configurarLembreteAgua); 
 router.put('/aluno/:id/salvar-assinatura', salvarAssinaturaPush);
-// Adicione esta linha junto com as outras rotas de aluno:
-router.post('/progressao-carga', alunoController.salvarProgressaoCarga);
+
+// ✅ 2. AQUI ESTÁ A ROTA NOVA DO JEITO CERTO! (Note o /aluno na frente para manter o padrão)
+router.post('/aluno/progressao-carga', salvarProgressaoCarga);
 
 // MÓDULO PERSONAL
 router.get('/personal/alunos', obterAlunosAssessoria);

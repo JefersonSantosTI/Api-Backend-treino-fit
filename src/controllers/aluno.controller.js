@@ -315,14 +315,32 @@ export const responderCheckin = async (req, res) => {
 };
 
 // Adicione esta função nova:
-const salvarProgressaoCarga = async (req, res) => {
+// Substitua o código que você colou no final do aluno.controller.js por este:
+
+// ✅ NOVA FUNÇÃO: SALVA A PROGRESSÃO DE CARGA DIRETO NO MODEL ALUNO
+export const salvarProgressaoCarga = async (req, res) => {
   try {
-      // Pega os dados que o React mandou
       const { alunoId, exercicioNome, carga, esforco } = req.body;
 
-      // Chama a função que você acabou de criar no aluno.js
-      // (Ajuste "alunoService" para o nome que você usa para importar o aluno.js no topo deste arquivo)
-      await alunoService.salvarCargaNoBanco(alunoId, exercicioNome, carga, esforco);
+      // Chama direto o Model Aluno (que já está importado lá no topo do seu arquivo!)
+      const alunoAtualizado = await Aluno.findByIdAndUpdate(
+          alunoId, 
+          {
+              $push: { 
+                  historicoCargas: {
+                      data: new Date(),
+                      exercicio: exercicioNome,
+                      carga: carga,
+                      esforco: esforco
+                  }
+              }
+          },
+          { new: true } 
+      );
+
+      if (!alunoAtualizado) {
+          return res.status(404).json({ erro: "Aluno não encontrado no banco de dados." });
+      }
 
       return res.status(200).json({ mensagem: "Carga salva com sucesso!" });
       
