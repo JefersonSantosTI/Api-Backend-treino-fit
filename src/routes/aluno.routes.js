@@ -24,6 +24,8 @@ router.put('/aluno/:id/atualizar-biometria', atualizarBiometria);
 router.post('/aluno/:id/gerar-plano-ia-personal', gerarPlanoIAPersonal); // ✅ 2. ROTA DO BOTÃO MÁGICO CONECTADA!
 router.put('/aluno/:id/agua', configurarLembreteAgua); 
 router.put('/aluno/:id/salvar-assinatura', salvarAssinaturaPush);
+// Adicione esta linha junto com as outras rotas de aluno:
+router.post('/progressao-carga', alunoController.salvarProgressaoCarga);
 
 // MÓDULO PERSONAL
 router.get('/personal/alunos', obterAlunosAssessoria);

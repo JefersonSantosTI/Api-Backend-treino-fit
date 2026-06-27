@@ -313,3 +313,23 @@ export const responderCheckin = async (req, res) => {
     res.status(500).json({ erro: error.message }); 
   }
 };
+
+// Adicione esta função nova:
+const salvarProgressaoCarga = async (req, res) => {
+  try {
+      // Pega os dados que o React mandou
+      const { alunoId, exercicioNome, carga, esforco } = req.body;
+
+      // Chama a função que você acabou de criar no aluno.js
+      // (Ajuste "alunoService" para o nome que você usa para importar o aluno.js no topo deste arquivo)
+      await alunoService.salvarCargaNoBanco(alunoId, exercicioNome, carga, esforco);
+
+      return res.status(200).json({ mensagem: "Carga salva com sucesso!" });
+      
+  } catch (erro) {
+      console.error("Erro ao salvar carga:", erro);
+      return res.status(500).json({ erro: "Falha ao salvar a carga." });
+  }
+};
+
+// ATENÇÃO: Adicione 'salvarProgressaoCarga' no module.exports no final do arquivo!

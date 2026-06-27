@@ -69,4 +69,31 @@ const AlunoSchema = new mongoose.Schema({
   checkins: [CheckinSchema]
 }, { timestamps: true });
 
+// Adicione esta função nova:
+const salvarCargaNoBanco = async (alunoId, exercicioNome, carga, esforco) => {
+  // Usa o seu model (Aluno) para injetar a carga no histórico
+  const alunoAtualizado = await Aluno.findByIdAndUpdate(
+      alunoId, 
+      {
+          $push: { 
+              historicoCargas: {
+                  data: new Date(),
+                  exercicio: exercicioNome,
+                  carga: carga,
+                  esforco: esforco
+              }
+          }
+      },
+      { new: true } 
+  );
+
+  if (!alunoAtualizado) {
+      throw new Error("Aluno não encontrado no banco de dados.");
+  }
+  return alunoAtualizado;
+};
+
+// ATENÇÃO: Não se esqueça de adicionar o nome dela no seu module.exports lá no final do arquivo!
+// Exemplo: module.exports = { funcaoAntiga1, funcaoAntiga2, salvarCargaNoBanco };
+
 export default mongoose.model('Aluno', AlunoSchema, 'alunos');
