@@ -9,4 +9,5 @@ router.post("/personal/auth", autenticarPersonal);
 
 // ✅ NOVA ROTA: O recebedor invisível dos pagamentos da Kiwify
 router.post('/webhook-personal', processarWebhookKiwify);
+
 export default router;

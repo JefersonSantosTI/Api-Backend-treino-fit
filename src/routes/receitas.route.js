@@ -29,6 +29,7 @@ router.post('/usuarios/atualizar', atualizarDadosOnboarding);
 router.post('/usuarios/ativar-vip', tornarVip);
 router.post('/usuarios/gerar-treino-ia', gerarTreinoIA);
 router.post('/webhook-aluno', webhookKiwify);
+
 // ==========================================
 // 🎛️ NOVAS ROTAS PORTAL PERSONAL & ALUNO (ESTILO MFIT)
 // ==========================================
