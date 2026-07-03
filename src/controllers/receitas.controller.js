@@ -209,8 +209,25 @@ export const webhookKiwify = async (req, res) => {
 
             if (usuario) {
                 console.log(`✅ VIP liberado com sucesso para: ${usuario.nome} (${usuario.WhatsApp})`);
+                
+                try {
+                    const io = req.app.get("io");
+                    // O identificador precisa ser o mesmo que o front-end usou no socket.join()
+                    const identificador = usuario.email || usuario.WhatsApp; 
+                    io.to(identificador).emit("pagamento_aprovado", {
+                        status: "sucesso",
+                        tipo: "aluno"
+                    });
+                    console.log(`📡 Evento emitido para aluno via Socket: ${identificador}`);
+                } catch (err) {
+                    console.error("Erro ao disparar Socket:", err);
+                }
+                
                 return res.status(200).json({ status: "sucesso" });
             }
+
+
+            
             
             console.warn(`⚠️ Usuário não encontrado no banco. 
                 Tentativas de busca: 

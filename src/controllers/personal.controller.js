@@ -60,6 +60,8 @@ export const aprovarTreinoEDietaDoPersonal = async (req, res) => {
 // =========================================================
 export const processarWebhookKiwify = async (req, res) => {
   console.log("🔥 Webhook recebido! Dados:", JSON.stringify(req.body));
+
+  
   
   try {
     const evento = req.body;
@@ -89,6 +91,17 @@ export const processarWebhookKiwify = async (req, res) => {
     }
 
     await personal.save();
+    try {
+      const io = req.app.get("io");
+      // Usando o e-mail do personal como sala
+      io.to(personal.email).emit("pagamento_aprovado", {
+          status: "sucesso",
+          tipo: "personal"
+      });
+      console.log(`📡 Evento emitido para personal via Socket: ${personal.email}`);
+  } catch (err) {
+      console.error("Erro ao disparar Socket:", err);
+  }
     res.status(200).send("Webhook processado com sucesso!");
 
   } catch (error) {
