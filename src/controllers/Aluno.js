@@ -29,8 +29,15 @@ const CheckinSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // ✅ O SCHEMA PRINCIPAL CORRETO E UNIFICADO
+// ✅ NO SEU ALUNO SCHEMA
 const AlunoSchema = new mongoose.Schema({
-  personalId: { type: String, required: true }, 
+  // Adicione index: true aqui
+  personalId: { type: String, required: true, index: true }, 
+
+  nome: { type: String, required: true },
+  // Adicione index: true aqui (já tem unique, o que cria um índice automático, mas é bom garantir)
+  whatsapp: { type: String, required: true, unique: true, index: true }, 
+  
 
   nome: { type: String, required: true },
   whatsapp: { type: String, required: true, unique: true },

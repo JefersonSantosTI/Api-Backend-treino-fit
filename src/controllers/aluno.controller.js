@@ -33,15 +33,17 @@ export const criarAluno = async (req, res) => {
 
 export const obterAlunosAssessoria = async (req, res) => {
   try {
-    // ✅ Agora ele só puxa os alunos que tiverem a chave desse personal
     const { personalId } = req.query;
     if (!personalId) return res.status(400).json({ message: 'Acesso negado. ID do Personal ausente.' });
 
-    const alunos = await Aluno.find({ personalId }).sort({ updatedAt: -1 });
+    // .select() diz ao banco: "Traga só esses campos e ignore os arrays gigantes de treinos e históricos"
+    const alunos = await Aluno.find({ personalId })
+      .select('nome whatsapp objetivo statusTreino statusConta peso altura idade') 
+      .sort({ updatedAt: -1 });
+      
     res.status(200).json(alunos);
   } catch (error) { res.status(500).json({ message: 'Erro.', erro: error.message }); }
 };
-
 // =========================================================
 // LOGIN DO ALUNO NO PORTAL (Filtro Blindado Anti-Acento e Espaço)
 // =========================================================
@@ -50,17 +52,9 @@ export const loginAluno = async (req, res) => {
     const { nome } = req.query;
     if (!nome) return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
 
-    // 1. Puxa todos os alunos do banco de dados (Rápido e seguro para assessorias)
-    const todosAlunos = await Aluno.find();
-
-    // 2. Limpa o que o aluno digitou:
-    const nomeBuscadoLimpo = nome.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    // 3. Procura na lista varrendo o banco de dados e limpando os nomes de lá também
-    const alunoEncontrado = todosAlunos.find(aluno => {
-      const nomeBancoLimpo = aluno.nome.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      return nomeBancoLimpo === nomeBuscadoLimpo;
-    });
+    // O MongoDB faz o trabalho pesado, buscando direto e ignorando acentos/maiúsculas
+    const alunoEncontrado = await Aluno.findOne({ nome: nome.trim() })
+      .collation({ locale: 'pt', strength: 1 }); // 'pt' e strength 1 ignora acentos (ex: Joao == João)
 
     if (!alunoEncontrado) {
       return res.status(404).json({ mensagem: 'Aluno não encontrado na assessoria.' });
