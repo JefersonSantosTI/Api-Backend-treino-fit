@@ -349,4 +349,23 @@ export const salvarProgressaoCarga = async (req, res) => {
   }
 };
 
+// =========================================================
+// ✅ FUNÇÃO RESTAURADA: SALVAR ASSINATURA PUSH (NOTIFICAÇÃO)
+// =========================================================
+export const salvarAssinaturaPush = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { subscription } = req.body;
+    
+    await Aluno.findByIdAndUpdate(id, {
+      'lembreteAgua.pushSubscription': subscription,
+      'lembreteAgua.ativo': true
+    });
+    
+    res.status(200).json({ mensagem: "Assinatura salva com sucesso!" });
+  } catch (error) { 
+    res.status(500).json({ erro: error.message }); 
+  }
+};
+
 // ATENÇÃO: Adicione 'salvarProgressaoCarga' no module.exports no final do arquivo!
