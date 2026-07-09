@@ -192,6 +192,7 @@ export const atualizarBiometria = async (req, res) => {
 // =========================================================
 // ✅ NOVA FUNÇÃO: EXCLUSIVA DO BOTÃO MÁGICO IA (PREENCHIMENTO AUTOMÁTICO)
 // =========================================================
+// ✅ NOVA FUNÇÃO: EXCLUSIVA DO BOTÃO MÁGICO IA (PREENCHIMENTO AUTOMÁTICO)
 export const gerarPlanoIAPersonal = async (req, res) => {
   try {
     const { id } = req.params;
@@ -201,7 +202,18 @@ export const gerarPlanoIAPersonal = async (req, res) => {
       return res.status(404).json({ mensagem: "Aluno não encontrado." });
     }
 
-    // Monta o payload injetando as medidas corporais que o Personal acabou de atualizar
+    // 🔥 FORMATADOR DE MEDIDAS PARA A IA ENTENDER 🔥
+    let textoMedidas = "Nenhuma medida extra registrada.";
+    if (aluno.medidas && Object.keys(aluno.medidas).length > 0) {
+        textoMedidas = `BF (Percentual de Gordura Estimado): ${aluno.medidas.percentualGordura || 'N/A'}%.\nPerímetros: `;
+        for (const [key, value] of Object.entries(aluno.medidas)) {
+            if (key !== 'percentualGordura' && key !== '_id' && value) {
+                textoMedidas += `${key}: ${value}cm, `;
+            }
+        }
+    }
+
+    // Monta o payload injetando as medidas corporais mastigadas
     const payloadIA = {
       nome: aluno.nome,
       peso: aluno.peso,
@@ -213,12 +225,18 @@ export const gerarPlanoIAPersonal = async (req, res) => {
       diasTreino: aluno.diasTreino,
       restricoes: aluno.restricoes,
       lesoes: aluno.lesoes,
-      medidasCorporais: aluno.medidas 
+      medidasCorporaisTexto: textoMedidas // Enviando em texto puro
     };
 
-    const promptFake = [{ role: "user", content: `Recalcule o plano completo para o aluno ${aluno.nome}. Leia atentamente as medidas corporais, se existirem, para direcionar o foco hipertrófico ou de perda de medidas localizadas.` }];
+    // A IA recebe a instrução para calcular Água e Dieta baseada no BF%
+    const promptFake = [{ 
+      role: "user", 
+      content: `Recalcule o plano completo para o aluno ${aluno.nome}.
+      DADOS CORPORAIS EXATOS: ${textoMedidas}.
+      Baseado no Percentual de Gordura (BF) e nos perímetros acima, recalcule a quantidade de Água diária necessária e crie uma dieta hiper-específica para a meta dele. Se o BF estiver alto, corte carboidratos simples.` 
+    }];
     
-    // Dispara o motor da OpenAI para ler a nova biometria e recalcular tudo
+    // Dispara o motor da OpenAI
     const novaPrescricaoIA = await obterRespostaReceitas(promptFake, payloadIA, "personal_ia");
 
     aluno.treinoSemanal = novaPrescricaoIA.treinoSemanal || aluno.treinoSemanal;
@@ -228,7 +246,6 @@ export const gerarPlanoIAPersonal = async (req, res) => {
 
     await aluno.save();
 
-    // Retorna os dados mastigados para o Front-end preencher os campos automaticamente
     res.status(200).json({
       treinoSemanal: aluno.treinoSemanal,
       dietaPrescrita: aluno.dietaPrescrita,
@@ -241,45 +258,33 @@ export const gerarPlanoIAPersonal = async (req, res) => {
 };
 
 // No aluno.controller.js
-// Adicione estas funções ao seu aluno.controller.js
-// Substitua a sua função configurarLembreteAgua por esta:
 export const configurarLembreteAgua = async (req, res) => {
   try {
     const { id } = req.params;
-    // ✅ ADICIONADO: Puxando o tipoFrequencia do celular
     const { ativo, horaInicio, horaFim, intervaloHoras, tipoFrequencia, subscription } = req.body;
 
-    const updateData = { 
-      lembreteAgua: { 
-        ativo, 
-        horaInicio: Number(horaInicio), 
-        horaFim: Number(horaFim), 
-        intervaloHoras: Number(intervaloHoras),
-        tipoFrequencia: tipoFrequencia || 'Definitivo' // ✅ SALVANDO NO BANCO
-      } 
+    // ✨ SOLUÇÃO: Usamos notação de ponto para não apagar o pushSubscription que já está no banco
+    const updateFields = { 
+      'lembreteAgua.ativo': ativo, 
+      'lembreteAgua.horaInicio': Number(horaInicio), 
+      'lembreteAgua.horaFim': Number(horaFim), 
+      'lembreteAgua.intervaloHoras': Number(intervaloHoras),
+      'lembreteAgua.tipoFrequencia': tipoFrequencia || 'Definitivo'
     };
 
     if (subscription) {
-      updateData.lembreteAgua.pushSubscription = subscription;
+      updateFields['lembreteAgua.pushSubscription'] = subscription;
     }
 
-    const alunoAtualizado = await Aluno.findByIdAndUpdate(id, updateData, { new: true });
+    const alunoAtualizado = await Aluno.findByIdAndUpdate(
+      id, 
+      { $set: updateFields }, 
+      { new: true }
+    );
     res.status(200).json(alunoAtualizado);
   } catch (error) {
     res.status(500).json({ erro: error.message });
   }
-};
-
-export const salvarAssinaturaPush = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { subscription } = req.body;
-    await Aluno.findByIdAndUpdate(id, {
-      'lembreteAgua.pushSubscription': subscription,
-      'lembreteAgua.ativo': true
-    });
-    res.status(200).json({ mensagem: "Assinatura salva!" });
-  } catch (error) { res.status(500).json({ erro: error.message }); }
 };
 
 // =========================================================
