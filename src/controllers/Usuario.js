@@ -12,13 +12,19 @@ const usuarioSchema = new mongoose.Schema({
     tipoConta: { type: String, enum: ["comum", "aluno"], default: "comum" },
     personalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Personal', default: null },
     statusTreino: { type: String, enum: ["nenhum", "rascunho_ia", "enviado_personal"], default: "nenhum" },
-    dietaCustomizada: { type: String, default: "" }, // Armazena a dieta final revisada pelo Personal
+    dietaCustomizada: { type: String, default: "" }, 
 
     // Campos na raiz
     peso: { type: Number, default: 0 },
     altura: { type: Number, default: 0 },
     idade: { type: Number, default: 25 },
-    genero: { type: String, default: "" },
+    genero: { type: String, default: "Masculino" },
+
+    // 🔥 AS GAVETAS QUE FALTAVAM PARA A IA LER 🔥
+    nivel: { type: String, default: "Intermediário" },
+    diasTreino: { type: String, default: "5" },
+    restricoes: { type: String, default: "" },
+    lesoes: { type: String, default: "" },
 
     // Objeto de compatibilidade
     dadosBiometricos: {

@@ -3,6 +3,7 @@ import obterRespostaReceitas from "../services/openai.service.js";
 import gerarDadosTreino from "../services/geradorTreinoIA.js"; 
 
 // --- 1. CHAT DE RECEITAS ---
+// --- 1. CHAT DE RECEITAS ---
 export const perguntaReceita = async (req, res) => {
     try {
         const { whatsapp: whatsappRaw, mensagemAtual, perfilExtraido } = req.body;
@@ -18,11 +19,17 @@ export const perguntaReceita = async (req, res) => {
             user = new Usuario({ WhatsApp: whatsLimpo, nome: "Guerreiro(a)", pago: false, historico: [] });
         }
 
+        // 🔥 EXTRAINDO O PACOTE COMPLETO DO QUIZ 🔥
         const NOME_FINAL = perfilExtraido?.nome || user.nome || "Guerreiro(a)";
         const PESO_FINAL = Number(perfilExtraido?.peso || user.peso || user.dadosBiometricos?.peso || 75);
         const ALTURA_FINAL = Number(perfilExtraido?.altura || user.altura || user.dadosBiometricos?.altura || 1.75);
         const META_FINAL = perfilExtraido?.meta || user.meta || user.dadosBiometricos?.meta || "Emagrecimento";
         const IDADE_FINAL = Number(perfilExtraido?.idade || user.idade || user.dadosBiometricos?.idade || 25);
+        const GENERO_FINAL = perfilExtraido?.genero || user.genero || "Masculino";
+        const NIVEL_FINAL = perfilExtraido?.nivel || user.nivel || "Intermediário";
+        const DIAS_FINAL = perfilExtraido?.diasTreino || user.diasTreino || "5";
+        const RESTRICOES_FINAL = perfilExtraido?.restricoes || user.restricoes || "Nenhuma";
+        const LESOES_FINAL = perfilExtraido?.lesoes || user.lesoes || "Nenhuma";
 
         const mensagensParaEnviar = (user.historico || []).slice(-6).map(h => ({
             role: h.role || "user",
@@ -31,12 +38,18 @@ export const perguntaReceita = async (req, res) => {
 
         mensagensParaEnviar.push({ role: "user", content: mensagemAtual });
 
+        // 🔥 ENVIANDO TUDO PARA A INTELIGÊNCIA ARTIFICIAL 🔥
         const respostaIA = await obterRespostaReceitas(mensagensParaEnviar, {
             nome: NOME_FINAL, 
             peso: PESO_FINAL, 
             altura: ALTURA_FINAL, 
             meta: META_FINAL,
-            idade: IDADE_FINAL 
+            idade: IDADE_FINAL,
+            genero: GENERO_FINAL,
+            nivel: NIVEL_FINAL,
+            diasTreino: DIAS_FINAL,
+            restricoes: RESTRICOES_FINAL, // O "Pão com Ovo" vai passar por aqui!
+            lesoes: LESOES_FINAL
         });
 
         user.historico.push({ role: 'user', content: mensagemAtual }, { role: 'assistant', content: respostaIA });
