@@ -36,13 +36,15 @@ export const obterAlunosAssessoria = async (req, res) => {
     const { personalId } = req.query;
     if (!personalId) return res.status(400).json({ message: 'Acesso negado. ID do Personal ausente.' });
 
-    // .select() diz ao banco: "Traga só esses campos e ignore os arrays gigantes de treinos e históricos"
+    // 🔥 A CORREÇÃO: Removemos o .select() daqui!
+    // Agora o MongoDB vai trazer a maleta completa do aluno (Treinos, Dieta, Medidas e Água) para o Front-end.
     const alunos = await Aluno.find({ personalId })
-      .select('nome whatsapp objetivo statusTreino statusConta peso altura idade') 
       .sort({ updatedAt: -1 });
       
     res.status(200).json(alunos);
-  } catch (error) { res.status(500).json({ message: 'Erro.', erro: error.message }); }
+  } catch (error) { 
+    res.status(500).json({ message: 'Erro.', erro: error.message }); 
+  }
 };
 // =========================================================
 // LOGIN DO ALUNO NO PORTAL (Filtro Blindado Anti-Acento e Espaço)
