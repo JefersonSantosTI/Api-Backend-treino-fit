@@ -33,9 +33,6 @@ const CheckinSchema = new mongoose.Schema({
 const AlunoSchema = new mongoose.Schema({
   // Adicione index: true aqui
   personalId: { type: String, required: true, index: true }, 
-
-  
-
   nome: { type: String, required: true },
   whatsapp: { type: String, required: true, unique: true },
   objetivo: { type: String, default: 'Emagrecimento' },
