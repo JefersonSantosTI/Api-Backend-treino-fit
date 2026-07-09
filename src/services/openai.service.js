@@ -94,6 +94,13 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       - Respeite rigorosamente as alergias e restrições: "${restricoes}". Se intolerante a lactose, use fontes alternativas; se celíaco, exclua glúten por completo; se vegano, foque em proteínas vegetais.
       - Aloque mais carboidratos complexos nas refeições Peri-Treino (Pré e Pós-treino).
 
+      [REGRAS DE NUTRIENT TIMING E REFEIÇÃO REAL]
+      1. Entregue variedade de verdade baseada na tabela TACO, gerando 3 opções equivalentes em macronutrientes por horário.
+      2. Não repita a mesma fonte proteica na mesma faixa horária.
+      3. No almoço e jantar, garanta saciedade inserindo folhas verdes e vegetais fibrosos à vontade.
+      4. Respeite rigorosamente a matemática de ${caloriasFinais} kcal.
+      5. 🚨 BASE ALIMENTAR BRASILEIRA (OBRIGATÓRIO): Para almoço e jantar, a base DEVE ser "Arroz e Feijão" (ou mandioca/batata/macarrão) acompanhados de proteínas de fácil acesso (Frango, Patinho, Ovos, Peixe). É PROIBIDO inventar dietas gourmet, suplementos caros ou "proteína de ervilha", a não ser que o aluno seja estritamente vegano! A comida tem que ser comida de verdade, rotineira e barata.
+
       ⚠️ RETORNO ESTRITO EM OBJETO JSON VÁLIDO (Sem markdown, sem explicações adicionais):
       {
         "agua": "${mlAgua}ml",
@@ -159,6 +166,13 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       Opção 1 (Com seus favoritos): [Alimentos combinados e pesos] -> **P: Xg | C: Xg | G: Xg** | [Kcal]
       Opção 2: [Alimentos combinados e pesos] -> **P: Xg | C: Xg | G: Xg** | [Kcal]
       Opção 3: [Alimentos combinados e pesos] -> **P: Xg | C: Xg | G: Xg** | [Kcal]
+
+      [REGRAS DE NUTRIENT TIMING E REFEIÇÃO REAL]
+      1. Entregue variedade de verdade baseada na tabela TACO, gerando 3 opções equivalentes em macronutrientes por horário.
+      2. Não repita a mesma fonte proteica na mesma faixa horária.
+      3. No almoço e jantar, garanta saciedade inserindo folhas verdes e vegetais fibrosos à vontade.
+      4. Respeite rigorosamente a matemática de ${caloriasFinais} kcal.
+      5. 🚨 BASE ALIMENTAR BRASILEIRA (OBRIGATÓRIO): Para almoço e jantar, a base DEVE ser "Arroz e Feijão" (ou mandioca/batata/macarrão) acompanhados de proteínas de fácil acesso (Frango, Patinho, Ovos, Peixe). É PROIBIDO inventar dietas gourmet, suplementos caros ou "proteína de ervilha", a não ser que o aluno seja estritamente vegano! A comida tem que ser comida de verdade, rotineira e barata.
 
       **🔥 Resumo de Macros Diários (Baseado na Opção 1):**
       Proteínas: Xg | Carboidratos: Xg | Gorduras: Xg | Total Diário: ${caloriasFinais} kcal.
