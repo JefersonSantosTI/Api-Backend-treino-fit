@@ -161,20 +161,30 @@ export default async function obterRespostaReceitas(mensagens, dadosUsuario = {}
       Otimize sua rotina! Peça todos os insumos calculados na sua dieta direto no nosso parceiro logístico.
       👉 [CLIQUE AQUI PARA PEDIR NA HORTILIFE](https://hortilife-praticidade.kyte.site/pt-BR)`;
     }
+
+    // ... final do seu promptDoSistema ...
     
+    // 1. Configuração base (Sem forçar JSON ainda)
     const configuracaoRequisicao = {
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: promptDoSistema },
         ...mensagens.map(msg => ({ role: msg.role, content: String(msg.content || "") }))
       ],
-      response_format: { type: "json_object" },
-      temperature: 0.2
+      // Deixa a IA mais precisa no Personal (0.2) e mais conversadora no Chat (0.6)
+      temperature: contexto === "personal_ia" ? 0.2 : 0.6 
     };
 
+    // 2. 🔥 A CORREÇÃO: Liga a trava de JSON APENAS se for o botão do Personal!
+    if (contexto === "personal_ia") {
+      configuracaoRequisicao.response_format = { type: "json_object" };
+    }
+
+    // 3. Dispara para a OpenAI
     const resposta = await openai.chat.completions.create(configuracaoRequisicao);
     const conteudoGerado = resposta.choices[0].message.content;
 
+    // 4. Se for o Personal, devolve como objeto pro React ler. Se for o Chat, devolve como texto puro!
     if (contexto === "personal_ia") {
       return JSON.parse(conteudoGerado); 
     }
