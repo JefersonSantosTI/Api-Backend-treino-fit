@@ -46,28 +46,25 @@ export const obterAlunosAssessoria = async (req, res) => {
     res.status(500).json({ message: 'Erro.', erro: error.message }); 
   }
 };
+
 // =========================================================
-// LOGIN DO ALUNO NO PORTAL (Filtro Blindado Anti-Acento e Espaço)
 // =========================================================
-// =========================================================
-// LOGIN DO ALUNO NO PORTAL (Filtro Flexível e Inteligente)
+// LOGIN DO ALUNO NO PORTAL (Acesso Exclusivo por WhatsApp)
 // =========================================================
 export const loginAluno = async (req, res) => {
   try {
-    const { nome } = req.query;
-    if (!nome) return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
+    // Agora recebemos o whatsapp pela URL
+    const { whatsapp } = req.query;
+    if (!whatsapp) return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
 
-    const termoBusca = nome.trim();
+    // Limpa qualquer traço ou espaço que o aluno digitar
+    const whatsLimpo = String(whatsapp).replace(/\D/g, "");
 
-    // 🔥 BUSCA FLEXÍVEL (REGEX): Acha o aluno mesmo se ele digitar só o primeiro nome, 
-    // ignorando maiúsculas e minúsculas! (Ex: "marina" acha "Marina Silva")
-    const alunoEncontrado = await Aluno.findOne({ 
-        nome: { $regex: new RegExp(termoBusca, "i") } 
-    });
+    // Busca exata pelo número (que é garantido ser único no banco)
+    const alunoEncontrado = await Aluno.findOne({ whatsapp: whatsLimpo });
 
     if (!alunoEncontrado) {
-      // É daqui que estava saindo o 404! Agora só vai sair se o nome não existir de jeito nenhum.
-      return res.status(404).json({ mensagem: 'Aluno não encontrado na assessoria.' });
+      return res.status(404).json({ mensagem: 'Aluno não encontrado. Verifique o número digitado.' });
     }
 
     res.status(200).json(alunoEncontrado);
