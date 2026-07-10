@@ -51,20 +51,38 @@ export const obterAlunosAssessoria = async (req, res) => {
 // =========================================================
 // LOGIN DO ALUNO NO PORTAL (Acesso Exclusivo por WhatsApp)
 // =========================================================
+// =========================================================
+// LOGIN DO ALUNO NO PORTAL (Busca Blindada por WhatsApp)
+// =========================================================
 export const loginAluno = async (req, res) => {
   try {
-    // Agora recebemos o whatsapp pela URL
-    const { whatsapp } = req.query;
-    if (!whatsapp) return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
+    // Aceita tanto ?whatsapp= quanto ?nome= (Caso o celular do aluno tenha cache antigo do site)
+    const valorDigitado = req.query.whatsapp || req.query.nome;
 
-    // Limpa qualquer traço ou espaço que o aluno digitar
-    const whatsLimpo = String(whatsapp).replace(/\D/g, "");
+    if (!valorDigitado) {
+        return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
+    }
 
-    // Busca exata pelo número (que é garantido ser único no banco)
-    const alunoEncontrado = await Aluno.findOne({ whatsapp: whatsLimpo });
+    // 1. Limpa tudo, deixa só os números que o aluno digitou
+    const whatsLimpo = String(valorDigitado).replace(/\D/g, "");
+
+    // 2. Se o aluno digitou 55 (Brasil) na frente, cria uma versão sem o 55
+    const whatsSem55 = whatsLimpo.startsWith("55") ? whatsLimpo.slice(2) : whatsLimpo;
+
+    // 3. Pega só os 8 últimos números (Ignora o DDD e o dígito 9, pegando a essência do número)
+    const ultimos8Digitos = whatsSem55.slice(-8);
+
+    // 🔥 4. A BUSCA BLINDADA NO BANCO DE DADOS 🔥
+    const alunoEncontrado = await Aluno.findOne({
+        $or: [
+            { whatsapp: whatsLimpo }, // Tenta o número exato
+            { whatsapp: whatsSem55 }, // Tenta sem o 55
+            { whatsapp: { $regex: ultimos8Digitos } } // Tenta achar de qualquer jeito (Ignora traços e parênteses que o Personal pode ter salvo)
+        ]
+    });
 
     if (!alunoEncontrado) {
-      return res.status(404).json({ mensagem: 'Aluno não encontrado. Verifique o número digitado.' });
+      return res.status(404).json({ mensagem: 'Aluno não encontrado. Peça para o Personal verificar seu cadastro.' });
     }
 
     res.status(200).json(alunoEncontrado);
