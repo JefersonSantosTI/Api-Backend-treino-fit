@@ -49,16 +49,24 @@ export const obterAlunosAssessoria = async (req, res) => {
 // =========================================================
 // LOGIN DO ALUNO NO PORTAL (Filtro Blindado Anti-Acento e Espaço)
 // =========================================================
+// =========================================================
+// LOGIN DO ALUNO NO PORTAL (Filtro Flexível e Inteligente)
+// =========================================================
 export const loginAluno = async (req, res) => {
   try {
     const { nome } = req.query;
     if (!nome) return res.status(400).json({ mensagem: 'Parâmetro obrigatório.' });
 
-    // O MongoDB faz o trabalho pesado, buscando direto e ignorando acentos/maiúsculas
-    const alunoEncontrado = await Aluno.findOne({ nome: nome.trim() })
-      .collation({ locale: 'pt', strength: 1 }); // 'pt' e strength 1 ignora acentos (ex: Joao == João)
+    const termoBusca = nome.trim();
+
+    // 🔥 BUSCA FLEXÍVEL (REGEX): Acha o aluno mesmo se ele digitar só o primeiro nome, 
+    // ignorando maiúsculas e minúsculas! (Ex: "marina" acha "Marina Silva")
+    const alunoEncontrado = await Aluno.findOne({ 
+        nome: { $regex: new RegExp(termoBusca, "i") } 
+    });
 
     if (!alunoEncontrado) {
+      // É daqui que estava saindo o 404! Agora só vai sair se o nome não existir de jeito nenhum.
       return res.status(404).json({ mensagem: 'Aluno não encontrado na assessoria.' });
     }
 
