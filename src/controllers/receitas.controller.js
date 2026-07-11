@@ -69,21 +69,31 @@ export const perguntaReceita = async (req, res) => {
 };
 
 // --- 2. MENTOR DE TREINO IA ---
+// --- 2. MENTOR DE TREINO IA ---
 export const gerarTreinoIA = async (req, res) => {
     try {
-        const { whatsapp, objetivo, perfilExtraido } = req.body;
+        // 🔥 AJUSTE 1: Aceitar a variável 'perfil' que vem do novo Front-end
+        const { whatsapp, objetivo, perfil, perfilExtraido } = req.body;
         const whatsappLimpo = String(whatsapp).replace(/\D/g, "");
 
         const user = await Usuario.findOne({ WhatsApp: whatsappLimpo }) || await Usuario.findOne({ whatsapp: whatsappLimpo });
 
+        // Garante que pega os dados independente de como o front mandou
+        const perfilAtivo = perfil || perfilExtraido || {};
+
+        // 🔥 AJUSTE 2: Mandar o pacote COMPLETO pro Head Coach (Peso, Altura, Lesões, Nível)
         const dadosParaIA = {
-            nome: perfilExtraido?.nome || user?.nome || "Guerreiro",
-            peso: Number(perfilExtraido?.peso || user?.peso || user?.dadosBiometricos?.peso || 75),
-            altura: Number(perfilExtraido?.altura || user?.altura || user?.dadosBiometricos?.altura || 1.75),
-            idade: Number(perfilExtraido?.idade || user?.idade || user?.dadosBiometricos?.idade || 25),
-            meta: perfilExtraido?.meta || user?.meta || objetivo || "Performance"
+            nome: perfilAtivo.nome || user?.nome || "Guerreiro",
+            peso: Number(perfilAtivo.peso || user?.peso || user?.dadosBiometricos?.peso || 75),
+            altura: Number(perfilAtivo.altura || user?.altura || user?.dadosBiometricos?.altura || 1.75),
+            idade: Number(perfilAtivo.idade || user?.idade || user?.dadosBiometricos?.idade || 25),
+            meta: objetivo || perfilAtivo.meta || user?.meta || "Performance",
+            diasTreino: perfilAtivo.diasTreino || user?.diasTreino || 5,
+            nivel: perfilAtivo.nivel || user?.nivel || "Intermediário",
+            lesoes: perfilAtivo.lesoes || user?.lesoes || "Nenhuma",
         };
 
+        // Passa a bola pro Head Coach (geradorTreinoIA.js) cruzar o Objetivo com o IMC
         const treinoData = await gerarDadosTreino(dadosParaIA.meta, dadosParaIA);
 
         if (user) {
