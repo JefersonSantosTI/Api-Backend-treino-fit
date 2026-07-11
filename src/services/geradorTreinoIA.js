@@ -57,7 +57,7 @@ FORMATO DO RETORNO JSON (Sem texto extra, sem crases markdown):
   "fase": "Nome estratégico da fase",
   "treinoSemanal": [
     {
-      "dia": "Nome do Dia",
+      "dia": "Segunda", // 🚨 REGRA MÁXIMA: Você DEVE usar EXATAMENTE um destes nomes: "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado". É expressamente PROIBIDO escrever "-feira" (ex: não use "Segunda-feira") ou usar abreviações.
       "foco": "Grupamento Alvo",
       "exercicios": [
         { "nome": "Nome Exato da Biblioteca", "series": 4, "reps": "8-12", "obs": "Instrução técnica avançada." }
