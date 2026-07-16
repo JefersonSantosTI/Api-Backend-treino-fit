@@ -18,6 +18,13 @@ import "./src/services/lembreteAgua.service.js";
 
 const app = express();
 
+// ✅ NOVO: MIDDLEWARE PARA CORRIGIR O BLOQUEIO DO window.postMessage (COOP)
+app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+  next();
+});
+
 // ✅ CRIANDO O SERVIDOR HTTP E O SOCKET.IO (A MÁGICA DO TEMPO REAL)
 const server = http.createServer(app);
 const io = new Server(server, {
