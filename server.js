@@ -34,7 +34,10 @@ const io = new Server(server, {
       "https://www.treinofit.app.br",
       "https://front-end-api-nv55.onrender.com", 
       "http://localhost:5173", 
-      "http://localhost:3000"
+      "http://localhost:3000",
+      "https://front-end-total-treino.onrender.com", // ✅ Link temporário do Total Treino
+      "https://totaltreino.com.br",                  // ✅ Domínio oficial do cliente
+      "https://www.totaltreino.com.br"               // ✅ Domínio oficial com www
     ],
     methods: ["GET", "POST"],
     credentials: true
@@ -65,7 +68,10 @@ const allowedOrigins = [
   "https://www.treinofit.app.br",
   "https://front-end-api-nv55.onrender.com", 
   "http://localhost:5173", 
-  "http://localhost:3000"
+  "http://localhost:3000",
+  "https://front-end-total-treino.onrender.com",     // ✅ Link temporário do Total Treino
+  "https://totaltreino.com.br",                      // ✅ Domínio oficial do cliente
+  "https://www.totaltreino.com.br"                   // ✅ Domínio oficial com www
 ];
 
 app.use(cors({
