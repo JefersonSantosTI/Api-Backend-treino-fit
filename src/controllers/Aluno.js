@@ -2,11 +2,10 @@ import mongoose from 'mongoose';
 
 const ExercicioSchema = new mongoose.Schema({
   nome: { type: String, required: true },
-  series: { type: Number, required: true },
-  reps: { type: String, required: true },
-  obs: { type: String }
+  series: { type: Number, default: 4 }, // ✅ Se a IA não mandar, o banco salva 4
+  reps: { type: String, default: "10" }, // ✅ Se a IA não mandar, o banco salva "10"
+  obs: { type: String, default: "" }
 });
-
 const RotinaDiariaSchema = new mongoose.Schema({
   dia: { type: String, enum: ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'], required: true },
   exercicios: [ExercicioSchema]
