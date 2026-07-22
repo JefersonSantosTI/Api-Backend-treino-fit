@@ -99,8 +99,7 @@ export const prescreverTreino = async (req, res) => {
     const alunoAtualizado = await Aluno.findByIdAndUpdate(
       id,
       { treinoSemanal, dietaPrescrita, metaAgua, statusTreino: 'Enviado' },
-      { new: true }
-    );
+      { returnDocument: 'after' }    );
     if (!alunoAtualizado) return res.status(404).json({ mensagem: 'Não encontrado.' });
     res.status(200).json(alunoAtualizado);
   } catch (error) { res.status(500).json({ erro: error.message }); }
@@ -113,7 +112,7 @@ export const registrarCheckin = async (req, res) => {
     const { data, diaSemana, feedback } = req.body; 
     
     const aluno = await Aluno.findById(id);
-    if (!aluno) return res.status(404).json({ window: 'Não encontrado.' });
+    if (!aluno) return res.status(404).json({ mensagem: 'Não encontrado.' }); // ✅ CORRIGIDO
     const jaFezCheckin = aluno.checkins.some(c => c.data === data);
     if (jaFezCheckin) return res.status(400).json({ mensagem: 'Check-in já realizado.' });
 
@@ -128,7 +127,7 @@ export const atualizarStatusConta = async (req, res) => {
   try {
     const { id } = req.params;
     const { statusConta } = req.body;
-    const alunoAtualizado = await Aluno.findByIdAndUpdate(id, { statusConta }, { new: true });
+    const alunoAtualizado = await Aluno.findByIdAndUpdate(id, { statusConta }, { returnDocument: 'after' }); // ✅ CORRIGIDO
     res.status(200).json(alunoAtualizado);
   } catch (error) { res.status(500).json({ erro: error.message }); }
 };
@@ -304,8 +303,7 @@ export const configurarLembreteAgua = async (req, res) => {
     const alunoAtualizado = await Aluno.findByIdAndUpdate(
       id, 
       { $set: updateFields }, 
-      { new: true }
-    );
+      { returnDocument: 'after' }    );
     res.status(200).json(alunoAtualizado);
   } catch (error) {
     res.status(500).json({ erro: error.message });
@@ -359,8 +357,7 @@ export const salvarProgressaoCarga = async (req, res) => {
                   }
               }
           },
-          { new: true } 
-      );
+          { returnDocument: 'after' }      );
 
       if (!alunoAtualizado) {
           return res.status(404).json({ erro: "Aluno não encontrado no banco de dados." });
