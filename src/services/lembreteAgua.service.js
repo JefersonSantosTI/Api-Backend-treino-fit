@@ -107,7 +107,8 @@ const processarLembretesDeAgua = async () => {
 };
 
 // ✅ ALTERADO: Agora roda de hora em hora de forma profissional para não estressar o celular
-cron.schedule('0 * * * *', () => { 
+// ✅ MODO TESTE: Roda a cada 1 minuto
+cron.schedule('* * * * *', () => { 
   processarLembretesDeAgua();
 });
 
